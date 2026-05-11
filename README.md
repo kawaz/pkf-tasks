@@ -2,7 +2,12 @@
 
 > English | [日本語](./README-ja.md)
 
-Shared task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire). Provides `vcs/auto.pkl` (jj/git abstraction) and `docs/translations.pkl` (translation-pair integrity check).
+Shared task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire). Modules provided:
+
+- **`vcs/auto.pkl`** — jj/git auto-dispatched task primitives (`commit` / `push` / `fetch` / `ensureClean`) plus Pkl function helpers (`diffSummary` / `readAtRef`) for embedding inside other Task `cmd`s.
+- **`docs/translations.pkl`** — translation-pair integrity check (paired `*-ja.md` / `*.md` documents — existence, mutual link, commit-timestamp order).
+- **`lint/pkl.pkl`** — language-agnostic `pkl format -w` task.
+- **`semver/check-bumped.pkl`** — parameterised gate task that fails if `triggerPaths` changed since `compareRef` without a corresponding VERSION bump. Requires `bump-semver` CLI on PATH.
 
 ## Usage
 
@@ -12,10 +17,12 @@ Shared task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire). Provi
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.4.0#/Taskfile.pkl"
 import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.7#/vcs/auto.pkl" as vcs
 import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.7#/docs/translations.pkl" as docs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.7#/lint/pkl.pkl" as lintPkl
 
 tasks {
   ...vcs.allTasks
   docs.checkTranslations
+  ...lintPkl.allTasks
 }
 ```
 
