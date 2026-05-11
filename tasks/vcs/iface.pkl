@@ -28,7 +28,8 @@ abstract ensureClean: Taskfile.Task
 
 /// 共通 helper: 全 task を Listing でまとめて取り出すための
 /// プロパティ。実装側で個別 task を埋めれば自動的に揃う。
-local allTasks: Listing<Taskfile.Task> = new {
+/// 利用側は `tasks { ...vcs.allTasks }` で一括登録できる。
+allTasks: Listing<Taskfile.Task> = new {
   commit
   push
   fetch
