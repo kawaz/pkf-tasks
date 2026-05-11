@@ -1,0 +1,46 @@
+/// SemVer 比較の汎用 task。`bump-semver compare` への薄いラッパで、
+/// pkfire の `acceptsArgs = true` 経由で任意の `<OP> <INPUT> <INPUT>` を渡す。
+///
+/// 用途:
+///   pkf run semver:compare -- gt VERSION 1.0.0
+///   pkf run semver:compare -- lt Cargo.toml vcs:latest-tag():Cargo.toml
+///   pkf run semver:compare -- eq package.json vcs:main@origin:package.json
+///
+/// pkfire 仕様の都合 (deps は Listing<Task> で引数渡し不可) で、本 task は
+/// **ad-hoc CLI 利用専用**。`semver:check-bumped` のような複合 gate task は
+/// 本 task を deps として再利用できないため、内部で `bump-semver compare` を
+/// 直接呼ぶ別 task として維持する。
+///
+/// bump-semver の `<INPUT>` 形式 (`bump-semver --help` 参照):
+///   FILE                  サポート形式の path (auto-detect by basename)
+///   VER                   生 semver 文字列 (1.2.3, 1.2.3-rc.1 等)
+///   -                     stdin から 1 行読む
+///   vcs:REV[:FILE]        VCS から REV 時点の FILE を読む (jj/git auto)
+///   vcs:latest-tag()      VCS から最大の semver-compatible tag を読む
+///
+/// 設計判断:
+///   - **bump-semver 必須**。`semver:check-bumped.pkl` と同じく、なければ
+///     `not implemented` メッセージで停止 (DR-0005)
+///   - **cache = true**: pkfire は `$@` の args を cache key に含めるので
+///     同じ引数の再実行は cache hit。比較結果が変わるのは VCS 状態変化時で
+///     その場合は args 文字列としての `vcs:...` から `bump-semver` が
+///     fresh 読み出しを行うため不整合は起きない (注: tag 移動などで結果が
+///     変わるが、それは利用者責任の範疇)
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.semver.compare
+
+import "@pkfire/Taskfile.pkl"
+
+compare: Taskfile.Task = new Taskfile.Task {
+  name = "semver:compare"
+  description = "SemVer compare via bump-semver (pkf run semver:compare -- <OP> <INPUT> <INPUT>)"
+  acceptsArgs = true
+  cmd = """
+    if ! command -v bump-semver >/dev/null 2>&1; then
+      echo 'ERROR: bump-semver not installed. SemVer compare is not implemented without it.' >&2
+      echo '       Install: brew install kawaz/tap/bump-semver' >&2
+      exit 1
+    fi
+    bump-semver compare "$@" --no-hint
+    """
+}

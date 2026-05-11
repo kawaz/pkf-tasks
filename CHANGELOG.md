@@ -1,6 +1,12 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.7`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.8`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.8 — 2026-05-11
+
+### Added (experimental)
+
+- **`tasks/semver/compare.pkl`** — generic `semver:compare` task that wraps `bump-semver compare` and forwards `$@` via `acceptsArgs = true`. Designed for **ad-hoc CLI usage** (`pkf run semver:compare -- gt VERSION vcs:latest-tag():VERSION`). Cannot be composed via `deps` because pkfire's `Task.deps: Listing<Task>` does not support passing arguments to dependencies — so complex gates like `semver:check-bumped` continue to inline `bump-semver compare` rather than depending on `semver:compare`. See journal entry `2026-05-11-pkf-tasks-v0.0.8-semver-compare-experiment.md` for the experimental scope and trade-offs.
 
 ## 0.0.7 — 2026-05-11
 
