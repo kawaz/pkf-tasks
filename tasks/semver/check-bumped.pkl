@@ -33,6 +33,7 @@
 module com.github.kawaz.pkfTasks.semver.checkBumped
 
 import "@pkfire/Taskfile.pkl"
+
 import "../vcs/auto.pkl" as vcs
 
 /// 比較対象 ref を返す bash command substitution の中身 (`$(...)` の中)。
@@ -51,8 +52,10 @@ taskName: String = "semver:check-version-bumped"
 
 check: Taskfile.Task = new Taskfile.Task {
   name = taskName
-  description = "ensure VERSION is bumped if triggerPaths changed since compareRef (bump-semver required)"
-  cmd = """
+  description =
+    "ensure VERSION is bumped if triggerPaths changed since compareRef (bump-semver required)"
+  cmd =
+    """
     compare_ref="$(\(compareRefCmd))"
     if [ -z "$compare_ref" ]; then
       echo 'ERROR: compareRefCmd returned empty (no comparison target found)' >&2

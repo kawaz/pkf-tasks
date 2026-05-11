@@ -35,7 +35,8 @@ compare: Taskfile.Task = new Taskfile.Task {
   name = "semver:compare"
   description = "SemVer compare via bump-semver (pkf run semver:compare -- <OP> <INPUT> <INPUT>)"
   acceptsArgs = true
-  cmd = """
+  cmd =
+    """
     if ! command -v bump-semver >/dev/null 2>&1; then
       echo 'ERROR: bump-semver not installed. SemVer compare is not implemented without it.' >&2
       echo '       Install: brew install kawaz/tap/bump-semver' >&2

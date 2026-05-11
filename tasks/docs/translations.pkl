@@ -34,7 +34,8 @@ function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
   name = "docs:check-translations"
   description = "verify translation pair integrity (links + commit-timestamp order)"
   cache = false
-  cmd = """
+  cmd =
+    """
     set -euo pipefail
     file_ts() {
       if jj root >/dev/null 2>&1; then

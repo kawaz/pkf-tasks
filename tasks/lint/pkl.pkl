@@ -37,7 +37,8 @@ format: Taskfile.Task = new Taskfile.Task {
   // `.` を渡すと cwd 配下の Pkl ファイルすべてに再帰適用される。
   // 個別ファイルだけ整形したい場合は利用側で `(format) { cmd = ... }`
   // で上書き。
-  cmd = """
+  cmd =
+    """
     set -euo pipefail
     pkl format -w .
     """

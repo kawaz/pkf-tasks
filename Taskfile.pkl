@@ -1,0 +1,138 @@
+/// kawaz/pkf-tasks 自身の Taskfile (dogfooding 用、CI からも参照).
+///
+/// 目的:
+///   1. 提供している `docs:check-translations` / `lint:pkl` を自リポでも使う
+///   2. CI ワークフローを `pkf run ci` 1 コマンドに集約 (ci.yml の bash 自前実装を排除)
+///   3. local 開発でも `pkf run lint` / `pkf run ci` などで自リポを操作
+///
+/// 制限事項 (技術的制約):
+///   `pkf` (pkfire 0.4.0) は pkl-go の Evaluator API を呼ぶ際に PklProject の
+///   auto-detection を有効にしていない。結果:
+///     - `@<dep>/...` 形式の import (`@pkfire/Taskfile.pkl` 等) は project found
+///       にならず "Cannot import dependency" でエラー
+///     - `package://...` 形式の直接参照のみ動く
+///   このため自身を「相対 path import で current source を直接使う」真の
+///   dogfood は現状不可。代替として **`package://...pkf-tasks@<latest>#/...`
+///   で自身の release zip を取り込む** (利用者と同じ取り込み方を試す形)。
+///
+///   未 release の変更は反映されないので、新規 module / 大きな変更を入れた
+///   PR は merge + release 後に Taskfile.pkl の version を bump する 2 段階
+///   PR が必要になる。これは pkfire 側に PklProject auto-detection の
+///   issue を上げて将来解消したい (ROADMAP)。
+@ModuleInfo { minPklVersion = "0.31.0" }
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.4.0#/Taskfile.pkl"
+
+import
+  "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.8#/docs/translations.pkl"
+  as docs
+import
+  "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.8#/lint/pkl.pkl"
+  as lintPkl
+import
+  "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.8#/semver/compare.pkl"
+  as semverCompare
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.8#/vcs/auto.pkl" as vcs
+
+// =============================================================================
+// CI 内部 task: smoke eval + package build
+// =============================================================================
+
+local smokeEval: Task = new {
+  name = "ci:smoke-eval"
+  description = "pkl eval all task modules (catches import / type errors)"
+  cache = false
+  workdir = "tasks"
+  cmd =
+    """
+    set -euo pipefail
+    for module in vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl lint/pkl.pkl semver/check-bumped.pkl semver/compare.pkl; do
+      echo "==> pkl eval $module"
+      pkl eval "$module" >/dev/null
+    done
+    """
+}
+
+local packageBuild: Task = new {
+  name = "ci:package-build"
+  description = "pkl project resolve + package (verifies tasks/PklProject is publishable)"
+  cache = false
+  workdir = "tasks"
+  // --skip-publish-check: ローカルで `lint:pkl` (pkl format -w) が auto-fix した
+  // 直後に走ると、まだ未 release の format 済 source と既 publish の zip で
+  // checksum が一致せず本来は fail する。CI 環境 (fresh checkout) で実害は
+  // 起きないが、ローカル `pkf run ci` の DX のために skip を入れる。
+  cmd =
+    """
+    set -euo pipefail
+    pkl project resolve
+    pkl project package --skip-publish-check
+    """
+}
+
+// =============================================================================
+// User-facing umbrellas
+// =============================================================================
+
+local lint: Task = new {
+  name = "lint"
+  description = "lint:pkl (Pkl format) — dogfooded from kawaz/pkf-tasks itself"
+  cache = false
+  deps { lintPkl.format }
+  cmd = "echo lint ok"
+}
+
+local ci: Task = new {
+  name = "ci"
+  description =
+    "smoke eval + package build + lint:pkl + docs:check-translations (full self-dogfood)"
+  cache = false
+  deps {
+    lintPkl.format
+    smokeEval
+    packageBuild
+    docs.checkTranslations
+  }
+  cmd = "echo ci ok"
+}
+
+local default: Task = new {
+  name = "default"
+  description = "list available tasks"
+  cache = false
+  cmd = "pkf list"
+}
+
+// =============================================================================
+// Release flow
+//
+// 注: bump-semver は PklProject (Pkl module 形式) を直接読めないため、
+// `semver:check-bumped` を pkf-tasks 自身に適用すると "unsupported file" エラー
+// になる。pkf-tasks 自身の version bump 漏れは release.yml の "tag と
+// PklProject version 一致" verify step に任せる (push 時の早期検出より、tag を
+// 打つ直前の最終 gate で十分)。
+// =============================================================================
+
+local push: Task = (vcs.push) {
+  name = "push"
+  description = "all gates → jj bookmark main → jj git push"
+  deps { ci }
+}
+
+// =============================================================================
+// Task registry
+// =============================================================================
+
+tasks {
+  default
+  lint
+  ci
+  smokeEval
+  packageBuild
+  ...vcs.allTasks
+  ...docs.allTasks
+  ...lintPkl.allTasks
+  // 汎用 semver compare (実験的、v0.0.8 から)
+  semverCompare.compare
+  // release flow
+  push
+}

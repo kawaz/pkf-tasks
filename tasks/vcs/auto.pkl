@@ -18,8 +18,9 @@ module com.github.kawaz.pkfTasks.vcs.auto
 extends "iface.pkl"
 
 import "@pkfire/Taskfile.pkl"
-import "jj.pkl" as jj
+
 import "git.pkl" as git
+import "jj.pkl" as jj
 
 /// cmd を bash の if-else 構造で連結。.jj 優先。
 ///
@@ -27,7 +28,8 @@ import "git.pkl" as git
 /// `[ -d .jj ]` は cwd 直下しか見ないので jj/git workspace のサブ
 /// ディレクトリで実行すると false positive になる罠を回避)。両 CLI が
 /// 親方向に repository ルートを探索してくれる。
-local function autoCmd(jjCmd: String, gitCmd: String): String = """
+local function autoCmd(jjCmd: String, gitCmd: String): String =
+  """
   if jj root >/dev/null 2>&1; then
   \(indent(jjCmd))
   elif git rev-parse --git-dir >/dev/null 2>&1; then
@@ -78,7 +80,8 @@ ensureClean = (jj.ensureClean) {
 ///     [ -z "$diff_out" ] && exit 0
 ///     # ... bump check etc.
 ///   """
-function diffSummary(ref: String, paths: List<String>): String = """
+function diffSummary(ref: String, paths: List<String>): String =
+  """
   $(if jj root >/dev/null 2>&1; then
     jj diff -r "\(ref)..@" --summary -- \(paths.join(" "))
   elif git rev-parse --git-dir >/dev/null 2>&1; then
@@ -96,7 +99,8 @@ function diffSummary(ref: String, paths: List<String>): String = """
 ///     cur=$(cat VERSION)
 ///     [ "$old" != "$cur" ] && echo "bumped"
 ///   """
-function readAtRef(ref: String, path: String): String = """
+function readAtRef(ref: String, path: String): String =
+  """
   $(if jj root >/dev/null 2>&1; then
     jj file show -r "\(ref)" -- \(path)
   elif git rev-parse --git-dir >/dev/null 2>&1; then

@@ -21,7 +21,8 @@ commit = new Taskfile.Task {
       description = "commit message body"
     }
   }
-  cmd = #"""
+  cmd =
+    #"""
     git commit -m "$MESSAGE"
     """#
 }
@@ -45,7 +46,8 @@ ensureClean = new Taskfile.Task {
   name = "vcs:ensure-clean"
   description = "git status --porcelain is empty"
   cache = false
-  cmd = #"""
+  cmd =
+    #"""
     [ -z "$(git status --porcelain)" ]
     """#
 }

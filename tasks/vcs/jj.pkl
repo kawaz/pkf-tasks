@@ -21,7 +21,8 @@ commit = new Taskfile.Task {
       description = "commit message body"
     }
   }
-  cmd = #"""
+  cmd =
+    #"""
     jj describe -m "$MESSAGE"
     jj new
     """#
@@ -34,7 +35,8 @@ push = new Taskfile.Task {
   // SSH agent socket はホスト inherit (pkfire の inheritEnv = true デフォルト) に
   // 任せる。`env` に明示すると未設定環境 (CI 等) で `read("env:...")` が
   // resource not found で eval 失敗するため、ergonomic state は env から外す。
-  cmd = """
+  cmd =
+    """
     jj bookmark set main -r @-
     jj git push --bookmark main
     """
@@ -51,7 +53,8 @@ ensureClean = new Taskfile.Task {
   name = "vcs:ensure-clean"
   description = "@ is empty (jj working copy is clean)"
   cache = false
-  cmd = #"""
+  cmd =
+    #"""
     [ "$(jj log -r @ --no-graph -T 'empty')" = "true" ]
     """#
 }
