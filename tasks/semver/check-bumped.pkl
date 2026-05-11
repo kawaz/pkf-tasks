@@ -62,7 +62,11 @@ check: Taskfile.Task = new Taskfile.Task {
   name = taskName
   description =
     "ensure VERSION is bumped if triggerPaths changed since compareRef (bump-semver required)"
-  deps = if (needsFetchTags) new Listing<Taskfile.Task> { vcs.fetchTags } else new Listing<Taskfile.Task> {}
+  deps =
+    if (needsFetchTags)
+      new Listing<Taskfile.Task> { vcs.fetchTags }
+    else
+      new Listing<Taskfile.Task> {}
   cmd =
     """
     compare_ref="$(\(compareRefCmd))"

@@ -20,10 +20,10 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.all
 
-import "vcs/auto.pkl" as vcsMod
 import "docs/translations.pkl" as docsMod
 import "lint/all.pkl" as lintMod
 import "semver/all.pkl" as semverMod
+import "vcs/auto.pkl" as vcsMod
 
 /// vcs: jj/git auto-dispatch task primitives (`commit` / `push` / `fetch` /
 /// `ensureClean` / `fetchTags`) + Pkl function helpers (`diffSummary` /

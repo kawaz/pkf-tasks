@@ -10,8 +10,8 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.lint.all
 
-import "pkl.pkl" as pklMod
 import "all-coverage.pkl" as allCoverageMod
+import "pkl.pkl" as pklMod
 
 /// `lint:pkl` task (Pkl format -w)。
 pkl = pklMod.format
