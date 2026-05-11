@@ -1,0 +1,46 @@
+/// Pkl ファイル (Taskfile.pkl / PklProject / *.pkl) の自動整形タスク。
+///
+/// pkl format -w を再帰的に当てる。任意プロジェクト共通の lint なので
+/// 言語ごとの lint (gofmt / cargo fmt / rustfmt 等) と分離して提供。
+///
+/// 利用側は umbrella `lint` task の deps に組み込む:
+///
+///   import "@pkf-tasks/lint/pkl.pkl" as pklLint
+///   local lint: Task = new {
+///     name = "lint"
+///     cache = false
+///     deps { goLint; pklLint.format }
+///     cmd = "echo lint ok"
+///   }
+///   tasks { lint; goLint; ...pklLint.allTasks }
+///
+/// `pkl format` は kawaz/* リポ間で動作差を抑えるため pkl 0.31+ を前提
+/// (pkfire の minPklVersion = 0.31.0 と同じ)。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.kawaz.pkfTasks.lint.pkl
+
+import "@pkfire/Taskfile.pkl"
+
+/// 検査対象。glob は cwd 起点で再帰的に評価される (pkfire の inputs
+/// と同じ doublestar 構文)。利用側で別 path を見たい場合は format
+/// task の inputs を `(format) { inputs { ... } }` で上書きする。
+local defaultInputs: Listing<String> = new {
+  "**/*.pkl"
+  "**/PklProject"
+  "**/PklProject.deps.json"
+}
+
+format: Taskfile.Task = new Taskfile.Task {
+  name = "lint:pkl"
+  description = "pkl format -w (Pkl ファイルの自動整形)"
+  inputs = defaultInputs
+  // `.` を渡すと cwd 配下の Pkl ファイルすべてに再帰適用される。
+  // 個別ファイルだけ整形したい場合は利用側で `(format) { cmd = ... }`
+  // で上書き。
+  cmd = """
+    set -euo pipefail
+    pkl format -w .
+    """
+}
+
+allTasks: Listing<Taskfile.Task> = new { format }
