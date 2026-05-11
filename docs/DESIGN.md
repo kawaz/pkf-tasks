@@ -14,10 +14,16 @@ tasks/
 │   ├── iface.pkl            # abstract module (commit / push / fetch / ensureClean)
 │   ├── jj.pkl               # jj implementation (extends iface)
 │   ├── git.pkl              # git implementation (extends iface)
-│   └── auto.pkl             # entry — concatenates jj/git cmds with a bash if-else
-└── docs/
-    └── translations.pkl     # README{,-ja}.md etc. pair check (single task, bash for loop)
+│   └── auto.pkl             # entry — Task export + Pkl function helpers (diffSummary / readAtRef)
+├── docs/
+│   └── translations.pkl     # README{,-ja}.md etc. pair check (single task, bash for loop)
+├── lint/
+│   └── pkl.pkl              # language-agnostic `pkl format -w` task
+└── semver/
+    └── check-bumped.pkl     # parameterized SemVer bump gate (bump-semver required)
 ```
+
+The internal module FQN uses `com.github.kawaz.pkfTasks.*`. Consumers always `import ... as <alias>`, so this rename is non-breaking; the reverse-domain notation just had to be corrected because `kawaz.com` is not owned (fixed in v0.0.6).
 
 ## VCS abstraction — abstract module + extends + runtime dispatch
 
@@ -28,6 +34,17 @@ tasks/
 Detection order: `.jj` wins over `.git`. `jj root` and `git rev-parse --git-dir` are preferred over `[ -d .jj ]` / `[ -d .git ]` because the upstream CLIs walk upward to the repository root — so `jj workspace add`-style subdirectories without `.jj` directly under cwd still resolve correctly.
 
 The Pkl object-amend syntax `(jj.commit) { description = ...; cmd = autoCmd(...) }` lets `auto.pkl` use jj's task as a base and override only `description` and `cmd`, inheriting `params` / `env` / `cache` / `shell` etc. unchanged from the jj side.
+
+### Two-layer export — Task plus Pkl function helpers
+
+`vcs/auto.pkl` exports **Tasks** (`commit` / `push` / `fetch` / `ensureClean`) **and** **Pkl functions** from the same module:
+
+- `diffSummary(ref: String, paths: List<String>): String` — returns a bash command substitution (the body of `$(...)`) that emits the list of files changed in the given paths relative to `ref`.
+- `readAtRef(ref: String, path: String): String` — returns a bash command substitution that emits a file's contents at the given `ref`.
+
+These return **bash fragments**, not structured values. Consumers embed them via Pkl string interpolation in other tasks' `cmd` (e.g. `\(vcs.diffSummary("$ref", List("src/")))`), and the bash if-else inside dispatches between jj and git at runtime (auto-detect).
+
+We deliberately kept these helpers inside `vcs/auto.pkl` rather than splitting them into a separate `vcs/helpers.pkl` module: that would duplicate the jj/git dispatch logic. Treating `auto.pkl` as a single gateway for everything auto-detect-related means consumers only need one `import ... as vcs` for both Tasks and helpers. See [DR-0005](./decisions/DR-0005-vcs-helper-functions-and-semver-group.md).
 
 ## Translation-pair verification — single task, bash for loop
 
@@ -45,6 +62,45 @@ The checks per pair:
 
 The cmd uses `set -euo pipefail` plus an explicit `failed=0` accumulator and `exit $failed` at the end. This way **every pair is checked**, but **any single failure exits the task with status 1**. `set -e` alone would stop at the first failure and hide subsequent ones; the combination gives the best signal ([CHANGELOG 0.0.4](../CHANGELOG.md#004--2026-05-11)).
 
+## Language-agnostic Lint — `lint/pkl.pkl`
+
+`tasks/lint/pkl.pkl` exposes a `lint:pkl` task that runs `pkl format -w` recursively against `**/*.pkl`, `PklProject`, and `PklProject.deps.json`. Pkl formatting is a shared concern across kawaz/* repos, so it ships independently of language-specific lint (`gofmt` / `cargo fmt` / etc.).
+
+Consumers wire it into an umbrella `lint` task alongside their language-specific lint tasks:
+
+```pkl
+local lint: Task = new {
+  name = "lint"; cache = false
+  deps { goLint; pklLint.format }
+  cmd = "echo lint ok"
+}
+```
+
+The module pins `minPklVersion = "0.31.0"` (same as pkfire) to keep `pkl format` behaviour consistent across kawaz/* repos.
+
+## SemVer gate — `semver/check-bumped.pkl`
+
+A gate Task that fails if `triggerPaths` have changed since a comparison ref but the VERSION files were not bumped. Typical uses: a pre-push guard (`compareRef = main@origin`) and a pre-release CI guard (`compareRef = the most recent v* tag`).
+
+It is parameterized so the consumer can instantiate multiple tasks:
+
+- `compareRefCmd: String` — body of a bash command substitution returning the comparison ref
+- `triggerPaths: List<String>` — paths whose changes should trigger the check (default `src/`)
+- `versionFiles: List<String>` — VERSION files that must be bumped (multiple allowed)
+- `taskName: String` — task name (consumers usually instantiate two: `semver:check-version-bumped` and `semver:check-against-latest-release`)
+
+The consumer uses Pkl's object-amend pattern, `(semverCheck) { ... }.check`, to fan out to several tasks. Internally the task uses `vcs.diffSummary` to detect changes in `triggerPaths`; if non-empty, it runs `bump-semver compare gt VERSION vcs:"$compare_ref":VERSION` for each VERSION file.
+
+### bump-semver is mandatory — SemVer comparison fallback is intentionally omitted
+
+If `bump-semver` is not on `PATH`, the task stops with `not implemented: install bump-semver`. We intentionally do **not** ship a pure-Pkl / bash fallback (e.g. `sort -V`):
+
+- SemVer's prerelease (`-rc.1`) and build-metadata (`+sha.abc`) ordering is subtle; `sort -V` gives counter-intuitive results (e.g. `0.14.0-rc.1` vs `0.14.0`).
+- `bump-semver` already implements semver.org-compliant ordering. Re-implementing it in bash would be duplicate work and a maintenance hazard.
+- pkf-tasks' responsibility ends at VCS dispatch; SemVer comparison belongs to bump-semver.
+
+Consumers should install it via `brew install kawaz/tap/bump-semver` (or equivalent), including in CI. `semver/*` depends on `vcs/*` in a one-way layering with no reverse dependencies. See [DR-0005](./decisions/DR-0005-vcs-helper-functions-and-semver-group.md).
+
 ## Distribution — Pkl package + GitHub Release
 
 `tasks/PklProject` declares package metadata:
@@ -53,7 +109,7 @@ The cmd uses `set -euo pipefail` plus an explicit `failed=0` accumulator and `ex
 package {
   name = "pkf-tasks"
   baseUri = "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/\(name)"
-  version = "0.0.5"
+  version = "0.0.7"
   packageZipUrl = "https://github.com/kawaz/pkf-tasks/releases/download/\(name)@\(version)/\(name)@\(version).zip"
   ...
 }
@@ -65,7 +121,9 @@ On the consumer side, the Pkl cache lives at `~/.pkl/cache/package-2/pkg.pkl-lan
 
 ## CI / release automation
 
-`.github/workflows/ci.yml`: on push to main or PRs, set up pkl + pkf via mizchi/pkfire's composite action, run `pkl eval` smoke tests on each module, confirm `pkl project package` succeeds, and self-dogfood the translation-pair check on this repo's own READMEs.
+`.github/workflows/ci.yml`: on push to main or PRs, set up pkl + pkf via mizchi/pkfire's composite action (`mizchi/pkfire@<commit SHA>`), run `pkl eval` smoke tests on each module, confirm `pkl project package` succeeds, and self-dogfood the translation-pair check on this repo's own READMEs.
+
+`uses:` references the action by **commit SHA**, not by tag (`mizchi/pkfire@pkfire@0.4.0`). The pkfire release tags contain `@` (`pkfire@0.4.0`), which breaks the GitHub Actions workflow parser at the workflow-file level — the run fails so early that no logs are even produced. SHA pinning sidesteps this entirely and is also a recommended supply-chain hardening practice. See [DR-0004](./decisions/DR-0004-pkfire-action-sha-pin.md).
 
 `.github/workflows/release.yml`: triggered by `pkf-tasks@*` tag pushes. It runs `pkl project package` and uploads the four expected assets to the matching GitHub Release. The workflow fails fast if the tag's version doesn't match the version declared in `PklProject`, preventing accidental mismatches.
 
