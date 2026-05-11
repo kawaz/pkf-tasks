@@ -10,8 +10,8 @@
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.4.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.5#/vcs/auto.pkl" as vcs
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.5#/docs/translations.pkl" as docs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.7#/vcs/auto.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.7#/docs/translations.pkl" as docs
 
 tasks {
   ...vcs.allTasks
