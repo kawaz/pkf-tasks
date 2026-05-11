@@ -35,6 +35,7 @@ function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
   description = "verify translation pair integrity (links + commit-timestamp order)"
   cache = false
   cmd = """
+    set -euo pipefail
     file_ts() {
       if jj root >/dev/null 2>&1; then
         jj log --no-graph -T 'committer.timestamp().format("%s")' \\
@@ -55,9 +56,11 @@ function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
       head -5 "${pair}.md"    | grep -qF "> English | [日本語](./${base}-ja.md)"
       test "$(file_ts "${pair}-ja.md")" -le "$(file_ts "${pair}.md")"
     }
+    failed=0
     for pair in \(pairs.toList().join(" ")); do
-      check_pair "$pair"
+      check_pair "$pair" || { echo "translation check FAILED: $pair" >&2; failed=1; }
     done
+    exit $failed
     """
 }
 
