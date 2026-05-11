@@ -1,0 +1,61 @@
+/// VCS interface の jj 実装。
+///
+/// 各 task は name に `vcs:` prefix を付けて、利用側で他 task と
+/// 衝突しないようにする。Task.name の regex は pkfire 0.4.0+ で
+/// `/` `:` を許容しているので `vcs:commit` のキーも自然。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.kawaz.pkfTasks.vcs.jj
+
+extends "iface.pkl"
+
+import "@pkfire/Taskfile.pkl"
+
+commit = new Taskfile.Task {
+  name = "vcs:commit"
+  description = "jj describe -m \"...\" && jj new (caller passes message via $MESSAGE)"
+  cache = false
+  params {
+    new Taskfile.Param {
+      name = "message"
+      type = "string"
+      description = "commit message body"
+    }
+  }
+  cmd = #"""
+    jj describe -m "$MESSAGE"
+    jj new
+    """#
+}
+
+push = new Taskfile.Task {
+  name = "vcs:push"
+  description = "jj bookmark set main -r @- && jj git push --bookmark main"
+  cache = false
+  // SSH 署名のため SSH_AUTH_SOCK を明示注入 (pkfire の hermetic env)。
+  env {
+    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
+  }
+  cmd = """
+    jj bookmark set main -r @-
+    jj git push --bookmark main
+    """
+}
+
+fetch = new Taskfile.Task {
+  name = "vcs:fetch"
+  description = "jj git fetch (remote bookmarks updated)"
+  cache = false
+  env {
+    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
+  }
+  cmd = "jj git fetch"
+}
+
+ensureClean = new Taskfile.Task {
+  name = "vcs:ensure-clean"
+  description = "@ is empty (jj working copy is clean)"
+  cache = false
+  cmd = #"""
+    [ "$(jj log -r @ --no-graph -T 'empty')" = "true" ]
+    """#
+}

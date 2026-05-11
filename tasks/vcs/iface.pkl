@@ -1,0 +1,36 @@
+/// VCS task interface (abstract module).
+///
+/// jj.pkl / git.pkl が amends してそれぞれ commit / push / fetch /
+/// ensureClean を埋める。auto.pkl が実行時に jj or git を選ぶ。
+///
+/// 利用側はインターフェースとして `import` し、`vcs.push` 等を
+/// `deps { vcs.push }` で typed に参照する。
+@ModuleInfo { minPklVersion = "0.31.0" }
+abstract module com.kawaz.pkfTasks.vcs.iface
+
+import "@pkfire/Taskfile.pkl"
+
+/// 「Release commit を作る」ような完全な commit 操作。
+/// 実装は jj describe + new (jj) or git commit (git)。
+abstract commit: Taskfile.Task
+
+/// リモートに反映する push 操作。
+/// jj は jj git push、git は git push。
+abstract push: Taskfile.Task
+
+/// リモートから fetch する操作。
+/// jj は jj git fetch、git は git fetch。
+abstract fetch: Taskfile.Task
+
+/// ワーキングコピーがクリーン (@ が empty / porcelain 空) かを
+/// 検査する gate task。push 前の前提条件として deps に置く。
+abstract ensureClean: Taskfile.Task
+
+/// 共通 helper: 全 task を Listing でまとめて取り出すための
+/// プロパティ。実装側で個別 task を埋めれば自動的に揃う。
+local allTasks: Listing<Taskfile.Task> = new {
+  commit
+  push
+  fetch
+  ensureClean
+}

@@ -1,0 +1,56 @@
+/// VCS interface の git 実装。
+///
+/// commit / push / fetch / ensureClean を git native コマンドで実装。
+/// jj.pkl と同じ name (`vcs:commit` 等) を使い、利用側からは
+/// 透過的に切り替わるようにする。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.kawaz.pkfTasks.vcs.git
+
+extends "iface.pkl"
+
+import "@pkfire/Taskfile.pkl"
+
+commit = new Taskfile.Task {
+  name = "vcs:commit"
+  description = "git commit -m \"$MESSAGE\""
+  cache = false
+  params {
+    new Taskfile.Param {
+      name = "message"
+      type = "string"
+      description = "commit message body"
+    }
+  }
+  cmd = #"""
+    git commit -m "$MESSAGE"
+    """#
+}
+
+push = new Taskfile.Task {
+  name = "vcs:push"
+  description = "git push origin main"
+  cache = false
+  env {
+    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
+  }
+  cmd = "git push origin main"
+}
+
+fetch = new Taskfile.Task {
+  name = "vcs:fetch"
+  description = "git fetch"
+  cache = false
+  env {
+    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
+  }
+  cmd = "git fetch"
+}
+
+ensureClean = new Taskfile.Task {
+  name = "vcs:ensure-clean"
+  description = "git status --porcelain is empty"
+  cache = false
+  cmd = #"""
+    [ -z "$(git status --porcelain)" ]
+    """#
+}

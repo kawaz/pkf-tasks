@@ -1,0 +1,71 @@
+/// 翻訳ペア (NAME-ja.md / NAME.md) の整合性チェック。
+///
+/// 検査内容:
+///   1. -ja.md が存在しなければ skip (任意ペア対応)
+///   2. .md (英語版) が同じディレクトリに存在
+///   3. -ja.md の冒頭 5 行に「> [English](./NAME.md) | 日本語」
+///   4. .md の冒頭 5 行に「> English | [日本語](./NAME-ja.md)」
+///   5. commit timestamp: ja_ts <= en_ts (英訳が遅れて push されてない)
+///
+/// 設計判断:
+///   - 1 Task で bash for ループ (Listing<Task> 展開しない)。
+///     cache 独立粒度が要らない処理は 1 Task で十分という pkfire 流儀。
+///   - jj / git の commit timestamp 取得は内部 bash 関数で自動切替。
+///     `tasks/vcs/auto.pkl` と同じ方針 (実行時判定)。
+///   - ペアの列挙 (`pairs`) は param で外から渡せる。default は
+///     kawaz docs-structure.md 慣習の 3 ペア。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.kawaz.pkfTasks.docs.translations
+
+import "@pkfire/Taskfile.pkl"
+
+/// デフォルトの翻訳ペア (kawaz docs-structure.md 準拠)。
+/// path-prefix を指定する: `README` → `README.md` / `README-ja.md`、
+/// `docs/DESIGN` → `docs/DESIGN.md` / `docs/DESIGN-ja.md`。
+local defaultPairs: Listing<String> = new {
+  "README"
+  "docs/DESIGN"
+  "docs/MANUAL"
+}
+
+/// 翻訳チェック Task を生成する。利用側でペアをカスタムしたい場合は
+/// `translations.task` を直接展開せず、この関数で別 Task を作る。
+function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
+  name = "docs:check-translations"
+  description = "verify translation pair integrity (links + commit-timestamp order)"
+  cache = false
+  cmd = """
+    file_ts() {
+      if [ -d .jj ]; then
+        jj log --no-graph -T 'committer.timestamp().format("%s")' \\
+          -r "latest(::@ & files('$1'))" 2>/dev/null || echo 0
+      elif [ -d .git ]; then
+        git log -1 --format=%ct -- "$1" 2>/dev/null || echo 0
+      else
+        echo 0
+      fi
+    }
+    check_pair() {
+      local pair=$1
+      if [ ! -f "${pair}-ja.md" ]; then return 0; fi
+      test -f "${pair}.md"
+      local base
+      base=$(basename "$pair")
+      head -5 "${pair}-ja.md" | grep -qF "> [English](./${base}.md) | 日本語"
+      head -5 "${pair}.md"    | grep -qF "> English | [日本語](./${base}-ja.md)"
+      test "$(file_ts "${pair}-ja.md")" -le "$(file_ts "${pair}.md")"
+    }
+    for pair in \(pairs.toList().join(" ")); do
+      check_pair "$pair"
+    done
+    """
+}
+
+/// `tasks { ...translations.allTasks }` で利用側から取り込める
+/// よう、デフォルトペアの Task を 1 個だけ持つ Listing として
+/// export する。
+checkTranslations: Taskfile.Task = task(defaultPairs)
+
+allTasks: Listing<Taskfile.Task> = new {
+  checkTranslations
+}

@@ -1,0 +1,56 @@
+/// VCS interface の entry point。実行時 (Task の cmd 内) に
+/// `.jj` / `.git` の存在で jj / git を分岐する。
+///
+/// 設計判断:
+///   - Pkl は pure な評価で FS state を見ないため、評価時に jj/git
+///     を選んで module を切り替えるアプローチは取れない (relative
+///     file resource read 不可)。代わりに jj.pkl / git.pkl から各々
+///     cmd を取り出し、bash の if-else で連結した cmd を提供する。
+///   - `.jj` を `.git` より優先 (kawaz の git-bare + jj-workspace
+///     構成は両方並存するが jj が正)。
+///
+/// 利用側:
+///   import "@pkf-tasks/vcs/auto.pkl" as vcs
+///   deps { vcs.push }
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.kawaz.pkfTasks.vcs.auto
+
+extends "iface.pkl"
+
+import "@pkfire/Taskfile.pkl"
+import "jj.pkl" as jj
+import "git.pkl" as git
+
+/// cmd を bash の if-else 構造で連結。.jj 優先。
+local function autoCmd(jjCmd: String, gitCmd: String): String = """
+  if [ -d .jj ]; then
+  \(indent(jjCmd))
+  elif [ -d .git ]; then
+  \(indent(gitCmd))
+  else
+    echo "vcs: no .jj or .git found in working directory" >&2
+    exit 1
+  fi
+  """
+
+/// 複数行 cmd を if-else の中で字下げする helper。
+local function indent(s: String): String =
+  s.split("\n").map((line) -> "  \(line)").join("\n")
+
+/// jj 版 Task の構造 (description / params / env / cache) を base に、
+/// cmd だけ実行時切り替え版で上書きする。
+commit = (jj.commit) {
+  cmd = autoCmd(jj.commit.cmd, git.commit.cmd)
+}
+
+push = (jj.push) {
+  cmd = autoCmd(jj.push.cmd, git.push.cmd)
+}
+
+fetch = (jj.fetch) {
+  cmd = autoCmd(jj.fetch.cmd, git.fetch.cmd)
+}
+
+ensureClean = (jj.ensureClean) {
+  cmd = autoCmd(jj.ensureClean.cmd, git.ensureClean.cmd)
+}
