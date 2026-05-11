@@ -17,7 +17,7 @@
 /// `pkl format` は kawaz/* リポ間で動作差を抑えるため pkl 0.31+ を前提
 /// (pkfire の minPklVersion = 0.31.0 と同じ)。
 @ModuleInfo { minPklVersion = "0.31.0" }
-module com.kawaz.pkfTasks.lint.pkl
+module com.github.kawaz.pkfTasks.lint.pkl
 
 import "@pkfire/Taskfile.pkl"
 

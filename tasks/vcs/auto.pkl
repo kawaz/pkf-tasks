@@ -13,7 +13,7 @@
 ///   import "@pkf-tasks/vcs/auto.pkl" as vcs
 ///   deps { vcs.push }
 @ModuleInfo { minPklVersion = "0.31.0" }
-module com.kawaz.pkfTasks.vcs.auto
+module com.github.kawaz.pkfTasks.vcs.auto
 
 extends "iface.pkl"
 
@@ -66,3 +66,40 @@ ensureClean = (jj.ensureClean) {
   description = "working copy is clean (auto-detect: jj @ empty or git porcelain empty)"
   cmd = autoCmd(jj.ensureClean.cmd, git.ensureClean.cmd)
 }
+
+/// 任意の ref と paths を比較し、変更があったファイル名一覧を返す
+/// bash command substitution。$(...) として展開して使う。
+///
+/// Pkl 評価時点では FS state が見えないため Task の cmd 内で実行時に
+/// jj/git を切り替える。利用例:
+///
+///   cmd = """
+///     diff_out=\(diffSummary("main@origin", List("src/")))
+///     [ -z "$diff_out" ] && exit 0
+///     # ... bump check etc.
+///   """
+function diffSummary(ref: String, paths: List<String>): String = """
+  $(if jj root >/dev/null 2>&1; then
+    jj diff -r "\(ref)..@" --summary -- \(paths.join(" "))
+  elif git rev-parse --git-dir >/dev/null 2>&1; then
+    git diff --name-only "\(ref)" -- \(paths.join(" "))
+  fi)
+  """
+
+/// 任意の ref におけるファイル内容を返す bash command substitution。
+/// $(...) として展開して使う。jj は `jj file show -r <ref> -- <path>`、
+/// git は `git show <ref>:<path>` で取得。
+///
+/// 利用例 (旧 version との比較):
+///   cmd = """
+///     old=\(readAtRef("main@origin", "VERSION"))
+///     cur=$(cat VERSION)
+///     [ "$old" != "$cur" ] && echo "bumped"
+///   """
+function readAtRef(ref: String, path: String): String = """
+  $(if jj root >/dev/null 2>&1; then
+    jj file show -r "\(ref)" -- \(path)
+  elif git rev-parse --git-dir >/dev/null 2>&1; then
+    git show "\(ref):\(path)"
+  fi)
+  """

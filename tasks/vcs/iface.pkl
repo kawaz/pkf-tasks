@@ -6,7 +6,7 @@
 /// 利用側はインターフェースとして `import` し、`vcs.push` 等を
 /// `deps { vcs.push }` で typed に参照する。
 @ModuleInfo { minPklVersion = "0.31.0" }
-abstract module com.kawaz.pkfTasks.vcs.iface
+abstract module com.github.kawaz.pkfTasks.vcs.iface
 
 import "@pkfire/Taskfile.pkl"
 

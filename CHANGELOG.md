@@ -1,6 +1,24 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.5`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.7`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.7 — 2026-05-11
+
+> 0.0.6 is intentionally skipped — the changes accumulated on `main` after 0.0.5 (lint:pkl group, DR-0004 fix) are released together with the 0.0.7 namespace/helpers/bump additions in a single bundle. The release.yml workflow runs for the first time with this tag.
+
+### Breaking (internal namespace, transparent to consumers)
+
+- **Module FQN** changed from `com.kawaz.pkfTasks.*` to `com.github.kawaz.pkfTasks.*`. `kawaz.com` is not a domain owned by the author, so `com.github.kawaz` (Maven Central convention for hosted projects) is the correct reverse-domain notation. Consumers import via `import "..." as <alias>` and never reference the FQN directly, so caller-side code requires no changes. The rename touches all five vcs modules (`iface` / `jj` / `git` / `auto`), `docs/translations.pkl`, `lint/pkl.pkl`, and DR-0001.
+
+### Added
+
+- **`tasks/lint/pkl.pkl`** — language-agnostic Pkl `format -w` task (`lint:pkl`) covering `**/*.pkl`, `PklProject`, and `PklProject.deps.json`. Designed to plug into a consumer's `lint` umbrella task so language-specific (e.g. `lint:go`) and language-shared (`lint:pkl`) checks coexist under a single `lint` entry point.
+- **`tasks/vcs/auto.pkl` helper functions** — `diffSummary(ref, paths)` and `readAtRef(ref, path)` now expose jj/git auto-dispatched bash command substitutions as Pkl function exports (returning bash `$(...)` fragments). Designed to be embedded inside other Task's `cmd` strings via `\(vcs.diffSummary(...))` interpolation. See DR-0005 for the rationale of mixing Task export + Pkl function export inside one module.
+- **`tasks/semver/check-bumped.pkl`** — new `semver:` task group. Provides a parameterised `check` task with `compareRefCmd` / `triggerPaths` / `versionFiles` / `taskName` fields, so consumers can instantiate **two distinct check tasks from the same module**: one for push-time gating (compare against `main@origin`) and one for CI-time release gating (compare against latest `v*` tag). Requires `bump-semver` CLI (kawaz/tap/bump-semver) on PATH — when missing, the task exits with a "not implemented: install bump-semver" message rather than attempting a bash `sort -V` SemVer fallback (DR-0005). The group name `semver:` (domain-based) was chosen over `bump:` (action-based) to keep the door open for future siblings like `semver:bump-version` / `semver:compare`.
+
+### Fixed
+
+- **DR-0004**: real cause of the GHA composite action failure is `@` in the ref name (single-@ form `mizchi/pkfire@0.4.0` also fails), not the `@@` double. Decision (SHA pin) and migration steps remain the same, but the Context and switch-test table are now accurate.
 
 ## 0.0.5 — 2026-05-11
 

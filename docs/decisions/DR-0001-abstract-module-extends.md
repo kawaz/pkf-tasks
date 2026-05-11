@@ -11,18 +11,18 @@ Pkl の `amends` は **既存モジュールを継承して値を上書き** す
 
 ## Decision
 
-`abstract module com.kawaz.pkfTasksVcsIface` を宣言する側 (`tasks/vcs/iface.pkl`) と、実装する側 (`tasks/vcs/jj.pkl` / `git.pkl` / `auto.pkl`) の関係は **`extends "iface.pkl"`** で表現する。`amends` ではない。
+`abstract module com.github.kawaz.pkfTasksVcsIface` を宣言する側 (`tasks/vcs/iface.pkl`) と、実装する側 (`tasks/vcs/jj.pkl` / `git.pkl` / `auto.pkl`) の関係は **`extends "iface.pkl"`** で表現する。`amends` ではない。
 
 ```pkl
 // iface.pkl
-abstract module com.kawaz.pkfTasks.vcs.iface
+abstract module com.github.kawaz.pkfTasks.vcs.iface
 abstract commit: Taskfile.Task
 abstract push: Taskfile.Task
 abstract fetch: Taskfile.Task
 abstract ensureClean: Taskfile.Task
 
 // jj.pkl
-module com.kawaz.pkfTasks.vcs.jj
+module com.github.kawaz.pkfTasks.vcs.jj
 extends "iface.pkl"
 
 commit = new Taskfile.Task { name = "vcs:commit"; cmd = "..." }

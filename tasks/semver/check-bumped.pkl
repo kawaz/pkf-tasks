@@ -1,0 +1,77 @@
+/// 「VCS 上の比較対象 ref から特定 paths が変更されたなら、VERSION ファイルも
+/// bump されていること」を検査する gate task。push 前 / CI release 前のガードとして
+/// 使う。
+///
+/// パラメータ化:
+///   - `compareRefCmd`: 比較対象 ref を返す bash command substitution の中身。
+///     例: `echo main@origin` (push 前ガード) / `git tag -l 'v*' --sort=-v:refname | head -1`
+///     (release 前ガード)
+///   - `triggerPaths`: 変更検知の対象 paths。default は `src/`
+///   - `versionFiles`: bump 対象の VERSION ファイル一覧。複数可
+///   - `taskName`: task 名 (利用側で別 task として 2 つインスタンス化したい時に変える)
+///
+/// 設計判断:
+///   - **bump-semver 必須**。SemVer 比較は bump-semver の責務として切り分け、
+///     ない環境では `not implemented: install bump-semver` で止める。pkf-tasks の責務は
+///     VCS dispatch まで、SemVer 比較は bump-semver に任せる。
+///
+/// 利用例 (bump-semver の Taskfile.pkl):
+///   import "@pkf-tasks/semver/check-bumped.pkl" as semverCheck
+///   local checkPush = (semverCheck) {
+///     compareRefCmd = "echo main@origin"
+///     triggerPaths = List("src/")
+///     versionFiles = List("VERSION")
+///     taskName = "semver:check-version-bumped"
+///   }.check
+///   local checkRelease = (semverCheck) {
+///     compareRefCmd = "git tag -l 'v*' --sort=-v:refname | head -1"
+///     triggerPaths = List("src/")
+///     versionFiles = List("VERSION")
+///     taskName = "semver:check-against-latest-release"
+///   }.check
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.semver.checkBumped
+
+import "@pkfire/Taskfile.pkl"
+import "../vcs/auto.pkl" as vcs
+
+/// 比較対象 ref を返す bash command substitution の中身 (`$(...)` の中)。
+/// default は `main@origin` (push 前ガード相当)。
+compareRefCmd: String = "echo main@origin"
+
+/// 変更検知の対象 paths。VCS の path filter にそのまま渡される。
+triggerPaths: List<String> = List("src/")
+
+/// bump 対象の VERSION ファイル一覧。複数指定時は全ファイルが
+/// bump 済みであることを要求する (1 つでも未 bump ならエラー)。
+versionFiles: List<String> = List("VERSION")
+
+/// task name。利用側で複数インスタンスを作る時に別名を付ける。
+taskName: String = "semver:check-version-bumped"
+
+check: Taskfile.Task = new Taskfile.Task {
+  name = taskName
+  description = "ensure VERSION is bumped if triggerPaths changed since compareRef (bump-semver required)"
+  cmd = """
+    compare_ref="$(\(compareRefCmd))"
+    if [ -z "$compare_ref" ]; then
+      echo 'ERROR: compareRefCmd returned empty (no comparison target found)' >&2
+      exit 1
+    fi
+
+    diff_out=\(vcs.diffSummary("$compare_ref", triggerPaths))
+    [ -z "$diff_out" ] && exit 0
+
+    if ! command -v bump-semver >/dev/null 2>&1; then
+      echo 'ERROR: bump-semver not installed. SemVer comparison fallback is not implemented.' >&2
+      echo '       Install: brew install kawaz/tap/bump-semver' >&2
+      exit 1
+    fi
+
+    \(versionFiles.map((f) -> "bump-semver compare gt \(f) vcs:\"$compare_ref\":\(f) --no-hint").join(" && ")) && exit 0
+
+    echo "ERROR: \(triggerPaths.join(", ")) changed since $compare_ref but version not bumped" >&2
+    echo '       run: just bump-version' >&2
+    exit 1
+    """
+}

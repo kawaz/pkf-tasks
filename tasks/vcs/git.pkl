@@ -4,7 +4,7 @@
 /// jj.pkl と同じ name (`vcs:commit` 等) を使い、利用側からは
 /// 透過的に切り替わるようにする。
 @ModuleInfo { minPklVersion = "0.31.0" }
-module com.kawaz.pkfTasks.vcs.git
+module com.github.kawaz.pkfTasks.vcs.git
 
 extends "iface.pkl"
 

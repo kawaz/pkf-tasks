@@ -15,7 +15,7 @@
 ///   - ペアの列挙 (`pairs`) は param で外から渡せる。default は
 ///     kawaz docs-structure.md 慣習の 3 ペア。
 @ModuleInfo { minPklVersion = "0.31.0" }
-module com.kawaz.pkfTasks.docs.translations
+module com.github.kawaz.pkfTasks.docs.translations
 
 import "@pkfire/Taskfile.pkl"
 

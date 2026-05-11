@@ -4,7 +4,7 @@
 /// 衝突しないようにする。Task.name の regex は pkfire 0.4.0+ で
 /// `/` `:` を許容しているので `vcs:commit` のキーも自然。
 @ModuleInfo { minPklVersion = "0.31.0" }
-module com.kawaz.pkfTasks.vcs.jj
+module com.github.kawaz.pkfTasks.vcs.jj
 
 extends "iface.pkl"
 
