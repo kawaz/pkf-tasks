@@ -3,11 +3,49 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  smoke:
+  pkl-smoke:
+    name: Pkl module eval smoke test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mizchi/pkfire@6e8f4735acd74407455ee6be3debfe9ca8c8e4e9
-      - run: pkl --version
+      - name: Cache Pkl packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pkl/cache
+          key: pkl-cache-${{ hashFiles('tasks/PklProject.deps.json') }}
+          restore-keys: |
+            pkl-cache-
+      # SHA pinning: mizchi/pkfire の tag は `pkfire@<version>` 形式で
+      # `uses: mizchi/pkfire@pkfire@0.4.0` のように `@` を 2 回書くと
+      # GitHub Actions の workflow parser が file-level error を起こす。
+      # 安全策として release tag に対応する commit SHA で pin する。
+      # 対応表は CHANGELOG / docs/decisions/DR-0004 を参照。
+      - name: Setup pkfire (pkfire@0.4.0)
+        uses: mizchi/pkfire@6e8f4735acd74407455ee6be3debfe9ca8c8e4e9
+      - name: Verify pkl version
+        run: pkl --version
+      - name: Resolve dependencies + smoke eval
+        working-directory: tasks
+        run: |
+          set -euo pipefail
+          pkl project resolve
+          for module in vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl; do
+            echo "==> pkl eval $module"
+            pkl eval "$module" >/dev/null
+          done
+          pkl project package
+      - name: Translation pair check (self dogfooding)
+        run: |
+          set -euo pipefail
+          file_ts() {
+            git log -1 --format=%ct -- "$1" 2>/dev/null || echo 0
+          }
+          test -f README-ja.md
+          test -f README.md
+          head -5 README-ja.md | grep -qF "> [English](./README.md) | 日本語"
+          head -5 README.md    | grep -qF "> English | [日本語](./README-ja.md)"
+          test "$(file_ts README-ja.md)" -le "$(file_ts README.md)"
