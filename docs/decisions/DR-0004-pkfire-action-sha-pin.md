@@ -5,17 +5,20 @@
 
 ## Context
 
-`mizchi/pkfire` は composite action を `action.yml` 形式で同梱しており、利用側 workflow から `uses: mizchi/pkfire@pkfire@0.4.0` の形で setup できる。pkfire README にもこの記法が推奨例として記載されている。
+`mizchi/pkfire` は composite action を `action.yml` 形式で同梱しており、利用側 workflow から `uses: mizchi/pkfire@pkfire@0.4.0` の形で setup できる。pkfire README にもこの記法が推奨例として記載されている。pkfire の release tag 命名は `pkfire@<version>` 形式 (リポ内に複数 package を持つ Pkl 流儀の踏襲)。
 
-しかし `kawaz/pkf-tasks` の CI / release workflow でこの記法をそのまま使うと、GitHub Actions が **workflow file レベルで parse 失敗** し、`run` の name が `.github/workflows/<file>.yml` のまま表示され、jobs が 1 件も評価されない状態になる (失敗 run は log すら取れない)。
+しかし `kawaz/pkf-tasks` の CI / release workflow でこの記法をそのまま使うと、GitHub Actions が **workflow file レベルで parse 失敗** し、`run` の name が `.github/workflows/<file>.yml` のまま表示され、jobs が 1 件も評価されない状態になる (失敗 run は log すら取れない、`This run likely failed because of a workflow file issue` のみ)。
 
 切り分けの結果:
 
-- `uses: actions/checkout@v4` のみ → success
-- `uses: mizchi/pkfire@pkfire@0.4.0` を 1 step 追加 → failure (workflow file issue)
-- `uses: mizchi/pkfire@6e8f4735acd74407455ee6be3debfe9ca8c8e4e9` (commit SHA pin) → success
+| 試した記法 | 結果 |
+|---|---|
+| `uses: actions/checkout@v4` のみ | ✅ success (parse 成功、`name: CI` 反映) |
+| `uses: mizchi/pkfire@pkfire@0.4.0` (README 推奨記法) を追加 | ❌ failure (workflow file issue) |
+| `uses: mizchi/pkfire@0.4.0` (`pkfire@` 抜きで `@` 1 個に) | ❌ failure (同様の workflow file issue) |
+| `uses: mizchi/pkfire@6e8f4735acd74407455ee6be3debfe9ca8c8e4e9` (commit SHA) | ✅ success |
 
-`<owner>/<repo>@<ref>` 構文の `<ref>` 部分に `@` を 2 重に含む `pkfire@0.4.0` を渡すと、GitHub Actions の workflow file parser が文法エラーとして解釈し、registration を拒否しているように見える。pkfire README の例 (`uses: mizchi/pkfire@pkfire@0.4.0`) は **理論上は動くべき** だが、実運用では文字列 trimming / escape 等のレイヤで `@@` が壊れている。
+**真の原因は「`@@` 2 重」ではない**: `@` 1 個版 (`mizchi/pkfire@0.4.0`) でも同じ failure になる。tag 名 `0.4.0` が mizchi/pkfire リポに存在しない (実 tag は `pkfire@0.4.0` のみ) ことも一因だが、それ以前に **`uses: <repo>@<ref>` 構文の `<ref>` 部分が `@` を含む文字列をうまく解決できない** のが本質。GitHub Actions parser が ref 抽出で「最初の `@` で path/ref を区切る」前提に作られている疑いが強く、`pkfire@0.4.0` のような `@` 入り ref を渡すと file-level error で死ぬ。
 
 ## Decision
 

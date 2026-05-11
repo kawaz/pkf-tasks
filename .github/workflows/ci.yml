@@ -19,8 +19,32 @@ jobs:
           key: pkl-cache-${{ hashFiles('tasks/PklProject.deps.json') }}
           restore-keys: |
             pkl-cache-
-      # debug: 「@@」が壊しているのか、「single @」で動くのか検証中。
-      # 結果次第で DR-0004 の前提が変わる。
-      - name: Setup pkfire (single-@ tag: 0.4.0)
-        uses: mizchi/pkfire@0.4.0
-      - run: pkl --version
+      # SHA pin: mizchi/pkfire の tag 名は `pkfire@<version>` 形式で `@` を
+      # 含むため、`uses: <repo>@<ref>` 構文と相性が悪く GHA parser が
+      # file-level error を起こす (DR-0004 参照)。pkfire@0.4.0 に対応する
+      # commit SHA を直接指して回避。
+      - name: Setup pkfire (pkfire@0.4.0)
+        uses: mizchi/pkfire@6e8f4735acd74407455ee6be3debfe9ca8c8e4e9
+      - name: Verify pkl version
+        run: pkl --version
+      - name: Resolve dependencies + smoke eval
+        working-directory: tasks
+        run: |
+          set -euo pipefail
+          pkl project resolve
+          for module in vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl lint/pkl.pkl; do
+            echo "==> pkl eval $module"
+            pkl eval "$module" >/dev/null
+          done
+          pkl project package
+      - name: Translation pair check (self dogfooding)
+        run: |
+          set -euo pipefail
+          file_ts() {
+            git log -1 --format=%ct -- "$1" 2>/dev/null || echo 0
+          }
+          test -f README-ja.md
+          test -f README.md
+          head -5 README-ja.md | grep -qF "> [English](./README.md) | 日本語"
+          head -5 README.md    | grep -qF "> English | [日本語](./README-ja.md)"
+          test "$(file_ts README-ja.md)" -le "$(file_ts README.md)"
