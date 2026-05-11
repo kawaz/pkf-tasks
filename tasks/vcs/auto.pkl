@@ -38,24 +38,31 @@ local function autoCmd(jjCmd: String, gitCmd: String): String = """
   fi
   """
 
-/// 複数行 cmd を if-else の中で字下げする helper。
+/// 複数行 cmd を if-else の中で字下げする helper。空行に余計な
+/// 空白を入れないよう、空文字列はそのまま通す。
 local function indent(s: String): String =
-  s.split("\n").map((line) -> "  \(line)").join("\n")
+  s.split("\n").map((line) -> if (line == "") "" else "  \(line)").join("\n")
 
-/// jj 版 Task の構造 (description / params / env / cache) を base に、
-/// cmd だけ実行時切り替え版で上書きする。
+/// jj 版 Task の構造 (params / env / cache) を base に、cmd と
+/// description を auto 版で上書きする。description は jj 側の文言を
+/// 残すと「jj 専用」と誤読されるため、auto.pkl で「vcs auto-detect」
+/// と明示する。
 commit = (jj.commit) {
+  description = "vcs commit (auto-detect: jj describe+new or git commit)"
   cmd = autoCmd(jj.commit.cmd, git.commit.cmd)
 }
 
 push = (jj.push) {
+  description = "vcs push (auto-detect: jj bookmark+git push or git push)"
   cmd = autoCmd(jj.push.cmd, git.push.cmd)
 }
 
 fetch = (jj.fetch) {
+  description = "vcs fetch (auto-detect: jj git fetch or git fetch)"
   cmd = autoCmd(jj.fetch.cmd, git.fetch.cmd)
 }
 
 ensureClean = (jj.ensureClean) {
+  description = "working copy is clean (auto-detect: jj @ empty or git porcelain empty)"
   cmd = autoCmd(jj.ensureClean.cmd, git.ensureClean.cmd)
 }

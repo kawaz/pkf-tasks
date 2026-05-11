@@ -31,10 +31,9 @@ push = new Taskfile.Task {
   name = "vcs:push"
   description = "jj bookmark set main -r @- && jj git push --bookmark main"
   cache = false
-  // SSH 署名のため SSH_AUTH_SOCK を明示注入 (pkfire の hermetic env)。
-  env {
-    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
-  }
+  // SSH agent socket はホスト inherit (pkfire の inheritEnv = true デフォルト) に
+  // 任せる。`env` に明示すると未設定環境 (CI 等) で `read("env:...")` が
+  // resource not found で eval 失敗するため、ergonomic state は env から外す。
   cmd = """
     jj bookmark set main -r @-
     jj git push --bookmark main
@@ -45,9 +44,6 @@ fetch = new Taskfile.Task {
   name = "vcs:fetch"
   description = "jj git fetch (remote bookmarks updated)"
   cache = false
-  env {
-    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
-  }
   cmd = "jj git fetch"
 }
 

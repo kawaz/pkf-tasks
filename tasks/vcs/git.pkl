@@ -30,9 +30,7 @@ push = new Taskfile.Task {
   name = "vcs:push"
   description = "git push origin main"
   cache = false
-  env {
-    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
-  }
+  // SSH agent socket はホスト inherit に任せる (jj.pkl と同じ理由)。
   cmd = "git push origin main"
 }
 
@@ -40,9 +38,6 @@ fetch = new Taskfile.Task {
   name = "vcs:fetch"
   description = "git fetch"
   cache = false
-  env {
-    ["SSH_AUTH_SOCK"] = read("env:SSH_AUTH_SOCK")
-  }
   cmd = "git fetch"
 }
 

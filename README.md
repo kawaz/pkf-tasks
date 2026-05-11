@@ -6,19 +6,19 @@ Common Pkl task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire) (a
 
 ## Design
 
-- **abstract module + value-level selection**: an abstract module (`tasks/vcs/iface.pkl`) declares the interface; concrete implementations (`tasks/vcs/jj.pkl`, `tasks/vcs/git.pkl`) `amends` it; an entry module (`tasks/vcs/auto.pkl`) probes the filesystem and selects the right one at evaluation time.
+- **abstract module + value-level selection**: an abstract module (`tasks/vcs/iface.pkl`) declares the interface; concrete implementations (`tasks/vcs/jj.pkl`, `tasks/vcs/git.pkl`) `extends` it (Pkl requires `extends` — not `amends` — for abstract modules); an entry module (`tasks/vcs/auto.pkl`) dispatches between jj and git at runtime inside the cmd via `jj root` / `git rev-parse`.
 - **Same interface across implementations**: jj and git implementations expose the same properties (`commit` / `push` / `fetch` / `ensureClean`) so callers reach for `vcs.push` transparently.
 - **Distributed as a Pkl package**: `package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@<version>`. The Pkl cache (`~/.pkl/cache/package-2/`) handles SHA256 verification and offline replay.
 
 ## Usage
 
-From any project's `Taskfile.pkl`:
+From any project's `Taskfile.pkl` (substitute the latest GitHub Release version):
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.4.0#/Taskfile.pkl"
 
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.1#/vcs/auto.pkl" as vcs
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.1#/docs/translations.pkl" as docs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.5#/vcs/auto.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.5#/docs/translations.pkl" as docs
 
 local push: Task = new {
   name = "push"
@@ -34,8 +34,8 @@ tasks { push; docs.checkTranslations; vcs.push }
 | Path | Contents |
 |---|---|
 | `vcs/iface.pkl` | abstract module (commit / push / fetch / ensureClean) |
-| `vcs/jj.pkl`    | jj implementation (amends iface) |
-| `vcs/git.pkl`   | git implementation (amends iface) |
+| `vcs/jj.pkl`    | jj implementation (extends iface) |
+| `vcs/git.pkl`   | git implementation (extends iface) |
 | `vcs/auto.pkl`  | entry point (selects jj or git by filesystem probe) |
 | `docs/translations.pkl` | Translation-pair integrity check (README / docs/DESIGN / docs/MANUAL, etc.) |
 
