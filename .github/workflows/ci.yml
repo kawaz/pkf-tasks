@@ -9,5 +9,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mizchi/pkfire@pkfire@0.4.0
+      - uses: mizchi/pkfire@6e8f4735acd74407455ee6be3debfe9ca8c8e4e9
       - run: pkl --version
