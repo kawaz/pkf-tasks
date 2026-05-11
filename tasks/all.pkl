@@ -1,0 +1,43 @@
+/// kawaz/pkf-tasks の全 module 集約エンドポイント。
+///
+/// 利用側で `import "package://...pkf-tasks@<version>#/all.pkl" as kawaz` 1 行で
+/// 全 group にアクセスできる:
+///
+///   tasks {
+///     ...kawaz.vcs.allTasks
+///     kawaz.docs.checkTranslations
+///     ...kawaz.lint.allTasks
+///     kawaz.semver.compare
+///     (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check
+///   }
+///
+/// kawaz/* の各リポジトリは pkf-tasks の全機能を使う前提なので、個別 import
+/// より集約 import の方が DRY。
+///
+/// 維持: `tasks/lint/all-coverage.pkl` が `tasks/` 配下の `*.pkl` (本ファイル
+/// 自身 / Taskfile.pkl / PklProject* / iface.pkl / **/all.pkl は除く) が全て
+/// 適切な namespace で re-export されているか検証する。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.all
+
+import "vcs/auto.pkl" as vcsMod
+import "docs/translations.pkl" as docsMod
+import "lint/all.pkl" as lintMod
+import "semver/all.pkl" as semverMod
+
+/// vcs: jj/git auto-dispatch task primitives (`commit` / `push` / `fetch` /
+/// `ensureClean` / `fetchTags`) + Pkl function helpers (`diffSummary` /
+/// `readAtRef`)。`...kawaz.vcs.allTasks` で全 task を一括登録可能。
+vcs = vcsMod
+
+/// docs: 翻訳ペア整合性チェック (`docs:check-translations`)。
+docs = docsMod
+
+/// lint: 言語横断の Pkl format (`kawaz.lint.pkl`) と all.pkl 群の漏れ検出
+/// (`kawaz.lint.allCoverage`)。
+lint = lintMod
+
+/// semver: SemVer 関連 gate / 汎用 compare。
+/// - `semver.checkBumped` は module 参照 (parameterize 用、`(...).check`)
+/// - `semver.compare` は task 直接 (ad-hoc CLI 用)
+semver = semverMod

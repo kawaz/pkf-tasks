@@ -1,6 +1,20 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.9`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.10`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.10 — 2026-05-11
+
+### Added
+
+- **`tasks/all.pkl`** — root 集約エンドポイント。利用側で `import "package://...pkf-tasks@0.0.10#/all.pkl" as kawaz` 1 行で `kawaz.vcs.*` / `kawaz.docs.*` / `kawaz.lint.*` / `kawaz.semver.*` に透過アクセスできる。kawaz/* の各リポは全機能を使う前提なので、個別 import より集約 import の方が DRY。
+- **`tasks/lint/all.pkl`** — `lint/` sub namespace 集約 (`lint:pkl` task と `lint:all-coverage` task を re-export)。
+- **`tasks/semver/all.pkl`** — `semver/` sub namespace 集約 (`semver.checkBumped` を module 参照、`semver.compare` を task 直接で公開)。
+- **`tasks/lint/all-coverage.pkl`** — `lint:all-coverage` task。`tasks/` 配下の `.pkl` module が `all.pkl` 群で全て re-export されているか検証し、漏れがあれば fail。これにより `all.pkl` の手動メンテ負債を CI / push 前 test で防止する (現状は検出のみ、`fix:all-coverage` の auto-fix は将来 task として追加予定)。
+
+### Design
+
+- 集約スタイルは「sub all.pkl は task を直接 export、parameterize 対象の module は module 参照で export」の方針。例: `kawaz.semver.checkBumped` は module 参照 (`(...).check` で parameterize)、`kawaz.semver.compare` は task 直接 (`tasks { kawaz.semver.compare }` で登録)。
+- 利用者は依然個別 import (`import ".../vcs/auto.pkl" as vcs`) も使える。`all.pkl` は便宜の dependency endpoint であり obligation ではない。
 
 ## 0.0.9 — 2026-05-11
 

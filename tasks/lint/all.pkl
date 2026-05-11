@@ -1,0 +1,20 @@
+/// `tasks/lint/` 配下の sub namespace 集約。
+///
+/// 利用側の `tasks/all.pkl` から `import "lint/all.pkl" as lint_` され、
+/// `kawaz.lint.pkl` (`lint:pkl` task) / `kawaz.lint.allCoverage`
+/// (`lint:all-coverage` task) で透過アクセスできるようにする。
+///
+/// `tasks/lint/pkl.pkl` の `allTasks` は維持 (利用側で
+/// `...kawaz.lint.pkl.allTasks` のような書き方をする場合に必要)、
+/// ただし主要 entry は task 直接公開で短く済ませる。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.lint.all
+
+import "pkl.pkl" as pklMod
+import "all-coverage.pkl" as allCoverageMod
+
+/// `lint:pkl` task (Pkl format -w)。
+pkl = pklMod.format
+
+/// `lint:all-coverage` task (all.pkl 群の漏れ検出)。
+allCoverage = allCoverageMod.allCoverage

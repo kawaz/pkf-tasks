@@ -1,0 +1,22 @@
+/// `tasks/semver/` 配下の sub namespace 集約。
+///
+/// 利用側の `tasks/all.pkl` から `import "semver/all.pkl" as semver_` され、
+/// `kawaz.semver.checkBumped` (parameterize 用 module 参照) と
+/// `kawaz.semver.compare` (task 直接参照) で透過アクセスできるようにする。
+///
+/// 維持: `tasks/lint/all-coverage.pkl` が `tasks/semver/` 配下の `*.pkl`
+/// (本ファイル自身は除く) が全て re-export されているか検証する。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.semver.all
+
+import "check-bumped.pkl" as checkBumpedMod
+import "compare.pkl" as compareMod
+
+/// `checkBumped` は **module 参照** として公開 (利用側で
+/// `(kawaz.semver.checkBumped) { compareRefCmd = ...; ... }.check` のように
+/// parameterize する想定)。
+checkBumped = checkBumpedMod
+
+/// `compare` は **task 直接** 公開 (acceptsArgs = true の ad-hoc CLI 用、
+/// 利用側は `kawaz.semver.compare` でそのまま登録可能)。
+compare = compareMod.compare
