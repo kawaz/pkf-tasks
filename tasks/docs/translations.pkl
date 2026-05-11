@@ -36,10 +36,10 @@ function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
   cache = false
   cmd = """
     file_ts() {
-      if [ -d .jj ]; then
+      if jj root >/dev/null 2>&1; then
         jj log --no-graph -T 'committer.timestamp().format("%s")' \\
           -r "latest(::@ & files('$1'))" 2>/dev/null || echo 0
-      elif [ -d .git ]; then
+      elif git rev-parse --git-dir >/dev/null 2>&1; then
         git log -1 --format=%ct -- "$1" 2>/dev/null || echo 0
       else
         echo 0

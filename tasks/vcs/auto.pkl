@@ -22,13 +22,18 @@ import "jj.pkl" as jj
 import "git.pkl" as git
 
 /// cmd を bash の if-else 構造で連結。.jj 優先。
+///
+/// 検出は `jj root` / `git rev-parse --git-dir` を使う (path_exists や
+/// `[ -d .jj ]` は cwd 直下しか見ないので jj/git workspace のサブ
+/// ディレクトリで実行すると false positive になる罠を回避)。両 CLI が
+/// 親方向に repository ルートを探索してくれる。
 local function autoCmd(jjCmd: String, gitCmd: String): String = """
-  if [ -d .jj ]; then
+  if jj root >/dev/null 2>&1; then
   \(indent(jjCmd))
-  elif [ -d .git ]; then
+  elif git rev-parse --git-dir >/dev/null 2>&1; then
   \(indent(gitCmd))
   else
-    echo "vcs: no .jj or .git found in working directory" >&2
+    echo "vcs: no jj or git repository found from working directory" >&2
     exit 1
   fi
   """
