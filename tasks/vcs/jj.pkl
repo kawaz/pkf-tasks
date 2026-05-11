@@ -58,3 +58,22 @@ ensureClean = new Taskfile.Task {
     [ "$(jj log -r @ --no-graph -T 'empty')" = "true" ]
     """#
 }
+
+// jj 環境での tag 同期 knowledge (DR-0006):
+//   1. `jj git fetch` で remote bookmarks + (tagOpt 設定済ならば) tag を取得
+//   2. `jj git import` で bare git 側で別途 fetched された tag を取り込む
+//      (利用者が `git config remote.origin.tagOpt --tags` を仕込んでいない場合
+//       や、別経路で bare git に tag が入った場合に効く)
+// どちらも best-effort で `|| true` を付けて、ネットワーク不通や設定不備でも
+// 後続の処理 (例: 既に local にある tag だけで判定する semver:check-bumped)
+// が走れるようにする。
+fetchTags = new Taskfile.Task {
+  name = "vcs:fetch-tags"
+  description = "jj git fetch + jj git import (sync tags from bare git into jj op log)"
+  cache = false
+  cmd =
+    """
+    jj git fetch || true
+    jj git import || true
+    """
+}

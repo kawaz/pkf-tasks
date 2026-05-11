@@ -69,6 +69,11 @@ ensureClean = (jj.ensureClean) {
   cmd = autoCmd(jj.ensureClean.cmd, git.ensureClean.cmd)
 }
 
+fetchTags = (jj.fetchTags) {
+  description = "fetch tags (auto-detect: jj git fetch+import or git fetch --tags)"
+  cmd = autoCmd(jj.fetchTags.cmd, git.fetchTags.cmd)
+}
+
 /// 任意の ref と paths を比較し、変更があったファイル名一覧を返す
 /// bash command substitution。$(...) として展開して使う。
 ///

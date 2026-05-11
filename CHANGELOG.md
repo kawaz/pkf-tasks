@@ -1,6 +1,18 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.8`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.9`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.9 — 2026-05-11
+
+### Added
+
+- **`vcs:fetch-tags` task** — abstracts the jj/git difference in tag fetching: jj does `jj git fetch || true; jj git import || true` (the latter syncs tags fetched into the bare git into jj's op log), git does `git fetch --tags origin`. Designed to be placed in the `deps` of any recipe that depends on the latest tag being visible (e.g. `vcs:latest-tag()` consumers).
+- **`semver:check-bumped` parameter `needsFetchTags: Boolean = false`** — when `true`, inserts `vcs.fetchTags` into the gate task's `deps`. Use this for instances that compare against tag-derived refs (`git tag -l 'v*' ...`, `vcs:latest-tag()` etc.) so the local jj/git tag view is synced before the version comparison.
+
+### Internal
+
+- **`tasks/vcs/iface.pkl`**: added `abstract fetchTags: Task` (the type system forces jj/git/auto implementations to provide it — DR-0001's compile-time safety in action). External consumers do not `extends "iface.pkl"` directly so they are unaffected.
+- **DR-0006**: codifies that `vcs/{iface,jj,git,auto}.pkl` is the **knowledge storage for jj/git differences** — every operation whose jj/git commands diverge belongs here, so recipe authors don't need to re-derive the dispatch each time. Sets a clear pattern for future additions.
 
 ## 0.0.8 — 2026-05-11
 

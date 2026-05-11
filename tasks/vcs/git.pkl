@@ -51,3 +51,13 @@ ensureClean = new Taskfile.Task {
     [ -z "$(git status --porcelain)" ]
     """#
 }
+
+// git 環境での tag 同期 (DR-0006):
+//   - `git fetch --tags origin` で remote の全 tag を local に取り込む
+//   - work tree 前提なので `--git-dir` 等の特殊扱いは不要
+fetchTags = new Taskfile.Task {
+  name = "vcs:fetch-tags"
+  description = "git fetch --tags origin"
+  cache = false
+  cmd = "git fetch --tags origin"
+}

@@ -26,6 +26,16 @@ abstract fetch: Taskfile.Task
 /// 検査する gate task。push 前の前提条件として deps に置く。
 abstract ensureClean: Taskfile.Task
 
+/// リモートから tag を fetch する操作。`vcs:latest-tag()` 等の
+/// "最新 tag を見る" 系のレシピが deps に置く想定。
+///
+/// 実装は jj/git で挙動差が大きい (DR-0006 vcs as knowledge storage):
+///   - jj: `jj git fetch` は git の `remote.<name>.tagOpt` を読むため
+///     設定なしだと tag が来ない。`jj git import` を併用して bare git
+///     側で fetched された tag を jj 側にも反映する
+///   - git: `git fetch --tags origin` で OK (work tree がある前提)
+abstract fetchTags: Taskfile.Task
+
 /// 共通 helper: 全 task を Listing でまとめて取り出すための
 /// プロパティ。実装側で個別 task を埋めれば自動的に揃う。
 /// 利用側は `tasks { ...vcs.allTasks }` で一括登録できる。
@@ -34,4 +44,5 @@ allTasks: Listing<Taskfile.Task> = new {
   push
   fetch
   ensureClean
+  fetchTags
 }

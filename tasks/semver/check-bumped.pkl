@@ -9,6 +9,9 @@
 ///   - `triggerPaths`: 変更検知の対象 paths。default は `src/`
 ///   - `versionFiles`: bump 対象の VERSION ファイル一覧。複数可
 ///   - `taskName`: task 名 (利用側で別 task として 2 つインスタンス化したい時に変える)
+///   - `needsFetchTags`: tag 系の compareRef (`git tag -l 'v*' ...`, `vcs:latest-tag()`)
+///     を使う場合に true。`vcs.fetchTags` を deps に挟んで jj/git の tag 同期を行う
+///     (jj 環境で `git fetch --tags` 後に `jj git import` が必要な問題を吸収、DR-0006)
 ///
 /// 設計判断:
 ///   - **bump-semver 必須**。SemVer 比較は bump-semver の責務として切り分け、
@@ -28,6 +31,7 @@
 ///     triggerPaths = List("src/")
 ///     versionFiles = List("VERSION")
 ///     taskName = "semver:check-against-latest-release"
+///     needsFetchTags = true   // tag 系の比較なので vcs:fetch-tags を deps に挟む
 ///   }.check
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.semver.checkBumped
@@ -50,10 +54,15 @@ versionFiles: List<String> = List("VERSION")
 /// task name。利用側で複数インスタンスを作る時に別名を付ける。
 taskName: String = "semver:check-version-bumped"
 
+/// true なら deps に `vcs.fetchTags` を挟む。tag 系の compareRef を使うときに有効化
+/// する (default false で push 前ガード等、main@origin 比較では不要)。
+needsFetchTags: Boolean = false
+
 check: Taskfile.Task = new Taskfile.Task {
   name = taskName
   description =
     "ensure VERSION is bumped if triggerPaths changed since compareRef (bump-semver required)"
+  deps = if (needsFetchTags) new Listing<Taskfile.Task> { vcs.fetchTags } else new Listing<Taskfile.Task> {}
   cmd =
     """
     compare_ref="$(\(compareRefCmd))"
