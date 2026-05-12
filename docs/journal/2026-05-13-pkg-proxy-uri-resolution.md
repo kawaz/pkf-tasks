@@ -93,6 +93,60 @@ pkfire の migrate task の regex は SemVer 2.0.0 完全対応 (`-[0-9A-Za-z.-]
 3. **pre-release / build-metadata の release tag は禁止** (proxy で解決不能、利用者が hit する 404 はバグに見える)
 4. release.yml の tag glob (`pkf-tasks@*`) は `+` を含むタグでも発火するが、利用者から見て使えない release を量産しても意味がない
 
+## 4 asset 構造の解明
+
+`curl https://pkg.pkl-lang.org/.../pkf-tasks@2.2.0` で proxy を直接叩いた結果、proxy は **単純な 301 redirect** で動作:
+
+```
+GET https://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.0
+↓ 301 Location:
+https://github.com/kawaz/pkf-tasks/releases/download/pkf-tasks@2.2.0/pkf-tasks@2.2.0
+                                                      └─ tag 名 ─┘ └─ asset 名 ─┘
+```
+
+= URI 末尾 segment `<name>@<version>` を **tag 名 + 拡張子なし asset 名** の両方として使う (両者は同じ文字列で固定)。
+
+### 拡張子なし asset の中身 (= metadata JSON)
+
+```json
+{
+  "name": "pkf-tasks",
+  "packageUri": "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.0",
+  "version": "2.2.0",
+  "packageZipUrl": "https://github.com/kawaz/pkf-tasks/releases/download/pkf-tasks@2.2.0/pkf-tasks@2.2.0.zip",
+  "packageZipChecksums": { "sha256": "394ec62f...dd514a62" },
+  "dependencies": { "pkfire": { "uri": "...", "checksums": { "sha256": "..." } } },
+  "sourceCodeUrlScheme": "https://github.com/kawaz/pkf-tasks/blob/pkf-tasks@2.2.0/tasks%{path}#L%{line}-%{endLine}",
+  "sourceCode": "https://github.com/kawaz/pkf-tasks/tree/pkf-tasks@2.2.0/tasks",
+  "license": "MIT",
+  "authors": ["..."]
+}
+```
+
+### release.yml が生成する 4 asset
+
+| asset 名 | 種類 | 役割 |
+|---|---|---|
+| `<name>@<ver>` (拡張子なし) | metadata JSON | proxy redirect 先、`packageZipUrl` / `packageZipChecksums` 等を記述 |
+| `<name>@<ver>.sha256` | テキスト | metadata 自体の SHA256 (verify 用、resolver が直接使うかは未検証) |
+| `<name>@<ver>.zip` | zip | 実 package 内容 (Pkl files)、metadata の `packageZipUrl` から間接 fetch |
+| `<name>@<ver>.zip.sha256` | テキスト | zip の SHA256 (ただし metadata JSON 内 `packageZipChecksums.sha256` でも同じ hash あり、独立ファイルは crutch かも) |
+
+### 最低何ファイル必要か
+
+理屈上は **metadata + zip の 2 ファイル**で動く可能性 (metadata 内に zip checksum が JSON で書かれてるため)。ただし実証は未実施。実用上は release.yml が 4 ファイル全部生成するので「足りない問題」は起きない。
+
+### URI 末尾 segment の `<name>@<version>` 制約 (まとめ)
+
+- `<name>` 必須 (空文字 / 抜き ✗)
+- `<name>` ≠ `<repo>` でも proxy parse は通る (= `<name>` を別名にする自由度あり、実用メリット薄い)
+- `<version>` は **core SemVer (`X.Y.Z`) のみ**
+- pre-release `-` / build-metadata `+` は proxy で 404
+
+### 個人的感想
+
+「拡張子なし `<name>@<version>` 拡張子なし asset」という強烈な違和感を最初に受け入れた時点で、`.sha256` 2 つ追加 / 4 ファイル運用は気にならなくなる (= **ドアインザフェイス的な仕様体験**)。慣れる前提で運用すれば良い。
+
 ## 関連
 
 - `docs/journal/2026-05-12-pkl-package-uri-no-v-prefix.md` — `v` prefix の制約 (`hasVersion` 違反)
