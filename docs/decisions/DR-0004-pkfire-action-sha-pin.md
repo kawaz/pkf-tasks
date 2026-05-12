@@ -1,7 +1,10 @@
 # DR-0004: GitHub Actions の composite action 参照は commit SHA で pin する
 
-- Status: Active
+- Status: Superseded by upstream fix (mizchi/pkfire 0.5.0+ ships `v<version>` action tags)
 - Date: 2026-05-11
+- Superseded: 2026-05-12
+
+> **2026-05-12 update**: mizchi/pkfire 0.5.0 で **action 用 `v<version>` 系の tag** (`v0.6.0` / `v0` 等) が別途切られた。`uses: mizchi/pkfire@v0.6.0` で `@` in ref name の workflow parser 問題が起きずに動く (`v0` で major floating も可能)。本 DR の SHA pin 戦略は **不要になった**。pkf-tasks v0.0.14 から `mizchi/pkfire@v0.6.0` に切り替え済。SHA 対応表は historical 記録として残す。
 
 ## Context
 
