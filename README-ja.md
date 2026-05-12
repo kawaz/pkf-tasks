@@ -30,9 +30,7 @@
 
 ## タスク一覧
 
-便利度の凡例: ★★★ = 多くの kawaz リポで必須・`push` の deps に組み込む系 / ★★ = 多用・特定用途で便利 / ★ = ad-hoc / 特殊用途 / 内部実装由来
-
-### `vcs/` — jj/git auto-dispatch VCS primitive + knowledge 集積場
+便利度の凡例: ★★★ = 多くの kawaz リポで必須・`push` の deps に組み込む系 / ★★ = 多用・特定用途で便利 / ★ = ad-hoc / 特殊用途 / 内部実装由来 (★ なしの行は task ではなく glob group)
 
 | Task | 便利度 | 用途 | 引数 / 備考 |
 |---|---|---|---|
@@ -41,31 +39,18 @@
 | `vcs:fetch` | ★★ | リモートから fetch (jj/git 自動切替) | — |
 | `vcs:ensure-clean` | ★★★ | working copy が clean か検査 (jj/git 自動切替) | `push` の gate に組み込む |
 | `vcs:fetch-tags` | ★★ | tag 同期 (jj/git 自動切替) | `semver:check-against-latest-release` 等の前段 |
-
-> 補足: 他 Task の cmd に文字列補間で埋め込む Pkl helper function (`vcs.diffSummary` / `vcs.readAtRef`) もあります。library 内部実装 + 上級利用者向け、詳細は [DESIGN-ja.md](./docs/DESIGN-ja.md) を参照。
-
-### `docs/` — 翻訳ペア整合性
-
-| Task | 便利度 | 用途 | 引数 / 備考 |
-|---|---|---|---|
 | `docs:check-translations` | ★★★ | 翻訳ペア (`*-ja.md` / `*.md`) 整合性検査 | `push` の deps に組み込む |
-
-### `lint/` — 言語横断 lint + meta lint
-
-| Task | 便利度 | 用途 | 引数 / 備考 |
-|---|---|---|---|
 | `lint:pkl` | ★★★ | 全 Pkl ファイルを `pkl format -w` で自動整形 | `push` の deps に組み込む |
-
-> library 内部用の `lint:all-coverage` (孤児 module 検出) もあります、consumer 用途は稀。
-
-### `semver/` — SemVer gate + ad-hoc compare (`bump-semver` CLI 必須)
-
-| Task | 便利度 | 用途 | 引数 / 備考 |
-|---|---|---|---|
 | `semver:check-bumped` | ★★★ | version bump 漏れ gate (利用側プロジェクトの version ファイルが必要なときに上がっているか検査) | object-amends で per-instance parameterize、利用例は下記 |
-| `semver:compare` | ★★ | `bump-semver compare` の薄ラッパ | 例: `pkf run semver:compare -- gt VERSION 1.0.0` |
+| `semver:compare` | ★★ | `bump-semver compare` の薄ラッパ | 例: `pkf run semver:compare -- gt VERSION 1.0.0` (`bump-semver` CLI 必須) |
+| **`migrate:check-*`** | — (glob group) | upstream 追従の検知 | `pkf run 'migrate:check-*'` で一括、`push` の deps 想定 (`bump-semver` CLI 必須) |
+| └ `migrate:check-pkf-tasks-current` | ★★★ | pkf-tasks の `import` が最新 release より古いと fail | — |
+| └ `migrate:check-pkfire-current` | ★★★ | pkfire の `amends` が最新 release より古いと fail | — |
+| **`migrate:update-*`** | — (glob group) | upstream 追従の自動修復 | `pkf run 'migrate:update-*'` で一括、check fail 時の救済 |
+| └ `migrate:update-pkf-tasks` | ★★ | pkf-tasks の `import` を最新 tag に書き換え | 自動 commit なし |
+| └ `migrate:update-pkfire` | ★★ | pkfire の `amends` を最新 tag に書き換え (eval 検証あり) | 自動 commit なし |
 
-`semver:check-bumped` の利用例:
+`semver:check-bumped` の利用例 (object-amends で parameterize):
 
 ```pkl
 (kawaz.semver.checkBumped) {
@@ -76,16 +61,7 @@
 }.check
 ```
 
-### `migrate/` — upstream 追従ペア (`bump-semver` CLI 必須)
-
-| Task | 便利度 | 用途 | 引数 / 備考 |
-|---|---|---|---|
-| **`migrate:check-*`** | — (glob, gate 系) | upstream 追従の検知 | `pkf run 'migrate:check-*'` で一括、`push` の deps 想定 |
-| └ `migrate:check-pkf-tasks-current` | ★★★ | pkf-tasks の `import` が最新 release より古いと fail | — |
-| └ `migrate:check-pkfire-current` | ★★★ | pkfire の `amends` が最新 release より古いと fail | — |
-| **`migrate:update-*`** | — (glob, fix 系) | upstream 追従の自動修復 | `pkf run 'migrate:update-*'` で一括、check fail 時の救済 |
-| └ `migrate:update-pkf-tasks` | ★★ | pkf-tasks の `import` を最新 tag に書き換え | 自動 commit なし |
-| └ `migrate:update-pkfire` | ★★ | pkfire の `amends` を最新 tag に書き換え (eval 検証あり) | 自動 commit なし |
+> 補足: 他 Task の cmd に文字列補間で埋め込む Pkl helper function (`vcs.diffSummary` / `vcs.readAtRef`)、library 内部用の `lint:all-coverage` (孤児 module 検出) もあります。詳細は [DESIGN-ja.md](./docs/DESIGN-ja.md) を参照。
 
 ## 使い方
 

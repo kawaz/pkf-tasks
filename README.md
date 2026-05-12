@@ -30,9 +30,7 @@ Shared task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire). Group
 
 ## Tasks at a glance
 
-Usefulness legend: ★★★ = required across most kawaz repos / wired into `push` deps / ★★ = frequently used or essential for specific use cases / ★ = ad-hoc / special-purpose / internal-implementation
-
-### `vcs/` — jj/git auto-dispatched VCS primitives + knowledge storage
+Usefulness legend: ★★★ = required across most kawaz repos / wired into `push` deps / ★★ = frequently used or essential for specific use cases / ★ = ad-hoc / special-purpose / internal (rows without ★ are glob groups, not tasks themselves)
 
 | Task | Usefulness | Purpose | Args / Notes |
 |---|---|---|---|
@@ -41,31 +39,18 @@ Usefulness legend: ★★★ = required across most kawaz repos / wired into `pu
 | `vcs:fetch` | ★★ | Fetch from remote (jj/git auto-dispatch) | — |
 | `vcs:ensure-clean` | ★★★ | Verify working copy is clean (jj/git auto-dispatch) | Wire into `push` gates |
 | `vcs:fetch-tags` | ★★ | Sync tags (jj/git auto-dispatch) | Precedes `semver:check-against-latest-release` etc. |
-
-> Note: there are also Pkl helper functions (`vcs.diffSummary` / `vcs.readAtRef`) that return bash `$(...)` fragments for string-interpolation into other Tasks' cmds. They are internal-implementation / advanced use; see [DESIGN.md](./docs/DESIGN.md).
-
-### `docs/` — translation-pair integrity
-
-| Task | Usefulness | Purpose | Args / Notes |
-|---|---|---|---|
 | `docs:check-translations` | ★★★ | Translation-pair (`*-ja.md` / `*.md`) integrity check | Wire into `push` deps |
-
-### `lint/` — language-agnostic + meta lint
-
-| Task | Usefulness | Purpose | Args / Notes |
-|---|---|---|---|
 | `lint:pkl` | ★★★ | Auto-format all Pkl files (`pkl format -w`) | Wire into `push` deps |
-
-> An internal `lint:all-coverage` (orphan-module detection) also exists; rarely used by consumers.
-
-### `semver/` — SemVer gates + ad-hoc compare (`bump-semver` CLI required)
-
-| Task | Usefulness | Purpose | Args / Notes |
-|---|---|---|---|
 | `semver:check-bumped` | ★★★ | Version-bump gate (fail if version files weren't bumped after relevant changes) | Parameterise per-instance via object-amends; usage example below |
-| `semver:compare` | ★★ | Thin wrapper around `bump-semver compare` | e.g. `pkf run semver:compare -- gt VERSION 1.0.0` |
+| `semver:compare` | ★★ | Thin wrapper around `bump-semver compare` | e.g. `pkf run semver:compare -- gt VERSION 1.0.0` (`bump-semver` CLI required) |
+| **`migrate:check-*`** | — (glob group) | Detect upstream drift | `pkf run 'migrate:check-*'` to run all; wire into `push` deps (`bump-semver` CLI required) |
+| └ `migrate:check-pkf-tasks-current` | ★★★ | Fail if pkf-tasks `import` is behind latest release | — |
+| └ `migrate:check-pkfire-current` | ★★★ | Fail if pkfire `amends` is behind latest release | — |
+| **`migrate:update-*`** | — (glob group) | Auto-fix upstream drift | `pkf run 'migrate:update-*'` to run all; remediation when checks fail |
+| └ `migrate:update-pkf-tasks` | ★★ | Rewrite pkf-tasks `import` to latest tag | No auto-commit |
+| └ `migrate:update-pkfire` | ★★ | Rewrite pkfire `amends` to latest tag (eval-verified) | No auto-commit |
 
-Usage example for `semver:check-bumped`:
+Usage example for `semver:check-bumped` (parameterise via object-amends):
 
 ```pkl
 (kawaz.semver.checkBumped) {
@@ -76,16 +61,7 @@ Usage example for `semver:check-bumped`:
 }.check
 ```
 
-### `migrate/` — upstream-drift pairs (`bump-semver` CLI required)
-
-| Task | Usefulness | Purpose | Args / Notes |
-|---|---|---|---|
-| **`migrate:check-*`** | — (glob, gate group) | Detect upstream drift | `pkf run 'migrate:check-*'` to run all; wire into `push` deps |
-| └ `migrate:check-pkf-tasks-current` | ★★★ | Fail if pkf-tasks `import` is behind latest release | — |
-| └ `migrate:check-pkfire-current` | ★★★ | Fail if pkfire `amends` is behind latest release | — |
-| **`migrate:update-*`** | — (glob, fix group) | Auto-fix upstream drift | `pkf run 'migrate:update-*'` to run all; remediation when checks fail |
-| └ `migrate:update-pkf-tasks` | ★★ | Rewrite pkf-tasks `import` to latest tag | No auto-commit |
-| └ `migrate:update-pkfire` | ★★ | Rewrite pkfire `amends` to latest tag (eval-verified) | No auto-commit |
+> Note: there are also Pkl helper functions (`vcs.diffSummary` / `vcs.readAtRef`) for embedding bash `$(...)` fragments into other Tasks' cmds, and an internal `lint:all-coverage` (orphan-module detection). See [DESIGN.md](./docs/DESIGN.md) for details.
 
 ## Usage
 
