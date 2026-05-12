@@ -6,17 +6,17 @@ Shared task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire). Drop-
 
 ## Modules
 
-- [`tasks/vcs/`](./tasks/vcs/) — jj/git auto-dispatched VCS primitives + knowledge storage
-- [`tasks/docs/`](./tasks/docs/) — translation-pair (`*-ja.md` / `*.md`) integrity check
-- [`tasks/lint/`](./tasks/lint/) — language-agnostic Pkl format + orphan-module detection
-- [`tasks/semver/`](./tasks/semver/) — SemVer bump gate + ad-hoc compare (`bump-semver` CLI required)
-- [`tasks/migrate/`](./tasks/migrate/) — upstream-drift detection + auto-fix for pkf-tasks / pkfire (`bump-semver` CLI required)
+- [vcs](./tasks/vcs/) — jj/git auto-dispatched VCS primitives + knowledge storage
+- [docs](./tasks/docs/) — translation-pair (`*-ja.md` / `*.md`) integrity check
+- [lint](./tasks/lint/) — language-agnostic Pkl format + orphan-module detection
+- [semver](./tasks/semver/) — SemVer bump gate + ad-hoc compare (`bump-semver` CLI required)
+- [migrate](./tasks/migrate/) — upstream-drift detection + auto-fix for pkf-tasks / pkfire (`bump-semver` CLI required)
 
 Each module directory has its own README with task details, parameters, and usage examples.
 
 ## Usage
 
-`Taskfile.pkl`:
+### Bundled import (one-liner via `all.pkl`)
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
@@ -32,7 +32,18 @@ tasks {
 }
 ```
 
-The `all.pkl` aggregation endpoint exposes every group through a single `kawaz` namespace. Per-module imports (`import ".../vcs/auto.pkl" as vcs`) also work for finer control.
+### Per-module import (pick only what you need)
+
+```pkl
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.17#/vcs/auto.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.17#/docs/translations.pkl" as docs
+
+tasks {
+  ...vcs.allTasks
+  docs.checkTranslations
+}
+```
 
 Inspect with `pkf list` / `pkf list -v` / `pkf graph --format mermaid`. Latest versions live in [Releases](https://github.com/kawaz/pkf-tasks/releases). Pin to an exact version while in the 0.0.x phase; the `migrate:check-*` gates keep the pin up to date.
 

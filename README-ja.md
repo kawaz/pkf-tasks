@@ -6,17 +6,17 @@
 
 ## Modules
 
-- [`tasks/vcs/`](./tasks/vcs/) — jj/git auto-dispatch な VCS primitive + knowledge 集積場
-- [`tasks/docs/`](./tasks/docs/) — 翻訳ペア (`*-ja.md` / `*.md`) 整合性検査
-- [`tasks/lint/`](./tasks/lint/) — 言語横断 Pkl format + 孤児 module 検出
-- [`tasks/semver/`](./tasks/semver/) — SemVer bump gate + ad-hoc compare (`bump-semver` CLI 必須)
-- [`tasks/migrate/`](./tasks/migrate/) — pkf-tasks / pkfire の upstream 追従検知 + 自動修復 (`bump-semver` CLI 必須)
+- [vcs](./tasks/vcs/) — jj/git auto-dispatch な VCS primitive + knowledge 集積場
+- [docs](./tasks/docs/) — 翻訳ペア (`*-ja.md` / `*.md`) 整合性検査
+- [lint](./tasks/lint/) — 言語横断 Pkl format + 孤児 module 検出
+- [semver](./tasks/semver/) — SemVer bump gate + ad-hoc compare (`bump-semver` CLI 必須)
+- [migrate](./tasks/migrate/) — pkf-tasks / pkfire の upstream 追従検知 + 自動修復 (`bump-semver` CLI 必須)
 
 各モジュールディレクトリには task 詳細・パラメータ・利用例を載せた README がある。
 
 ## 使い方
 
-`Taskfile.pkl`:
+### 集約 import (一括、`all.pkl` 経由)
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
@@ -32,7 +32,18 @@ tasks {
 }
 ```
 
-集約 endpoint `all.pkl` で全 group に `kawaz` 1 namespace 経由でアクセス。個別 import (`import ".../vcs/auto.pkl" as vcs`) も従来どおり可。
+### 個別 import (一部 group だけ使う場合)
+
+```pkl
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.17#/vcs/auto.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.17#/docs/translations.pkl" as docs
+
+tasks {
+  ...vcs.allTasks
+  docs.checkTranslations
+}
+```
 
 確認は `pkf list` / `pkf list -v` / `pkf graph --format mermaid` で。最新版は [Releases](https://github.com/kawaz/pkf-tasks/releases)。0.0.x は不安定なので exact pin 推奨、`migrate:check-*` gate が pin の鮮度を保つ。
 
