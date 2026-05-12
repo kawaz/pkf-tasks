@@ -36,7 +36,8 @@ update: Taskfile.Task = new Taskfile.Task {
       exit 0
     fi
     # in-place 書き換え (BSD/GNU sed 両対応で .bak 経由)
-    sed -i.bak -E "s|\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+|\(tagPrefix)${new_version}|g" \(taskfilePath)
+    # SemVer 2.0.0 完全対応の regex (pre-release / build metadata 含む)
+    sed -i.bak -E "s|\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?|\(tagPrefix)${new_version}|g" \(taskfilePath)
     rm -f \(taskfilePath).bak
     echo "updated to \(tagPrefix)${new_version} — review the diff and commit"
     """

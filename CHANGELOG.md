@@ -1,6 +1,16 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.12`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.13`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.13 — 2026-05-12
+
+### Fixed
+
+- **`migrate:check-pkf-tasks-current` / `migrate:update-pkf-tasks` の version regex を SemVer 2.0.0 完全対応に拡張**。従来は `pkf-tasks@[0-9]+\.[0-9]+\.[0-9]+` のみマッチしていたため、将来 RC release (`pkf-tasks@0.1.0-rc.1`) を出した時に:
+  - `check`: `current` が `0.1.0` として抽出され (実際は `0.1.0-rc.1`)、`bump-semver compare ge` が誤った判定を下す可能性
+  - `update`: sed 置換が pre-release 部分を **完全消失** させる破壊的挙動 (`pkf-tasks@0.1.0-rc.1` → `pkf-tasks@<new>` 全置換)
+  
+  v0.0.13 で regex を `[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?` に拡張、pre-release / build metadata を含めて検出 + 置換するように修正。セキュリティ点検 (2026-05-12) で指摘された将来検討事項への対応。
 
 ## 0.0.12 — 2026-05-12
 

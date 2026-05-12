@@ -39,7 +39,10 @@ check: Taskfile.Task = new Taskfile.Task {
       exit 1
     fi
     latest=$(bump-semver get 'vcs:latest-tag(\(remoteRepoSpec))')
-    current=$(grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+' \(taskfilePath) | head -1 | sed 's|^\(tagPrefix)||')
+    # SemVer 2.0.0 完全対応の regex (pre-release `-rc.1` / build metadata `+sha.abc`
+    # を含めて抽出)。0.1.0 stable 化後の RC release で current が低く読まれる
+    # 破壊的挙動を防ぐ (セキュリティ点検 2026-05-12 で指摘)
+    current=$(grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?' \(taskfilePath) | head -1 | sed 's|^\(tagPrefix)||')
     if [ -z "$current" ]; then
       echo "ERROR: failed to detect current \(tagPrefix) version in \(taskfilePath)" >&2
       exit 1
