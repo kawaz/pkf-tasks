@@ -61,6 +61,7 @@ push = (jj.push) {
 
 fetch = (jj.fetch) {
   description = "fetch from origin"
+  visibility = "internal"
   cmd = autoCmd(jj.fetch.cmd, git.fetch.cmd)
 }
 
@@ -71,6 +72,7 @@ ensureClean = (jj.ensureClean) {
 
 fetchTags = (jj.fetchTags) {
   description = "fetch tags from origin"
+  visibility = "internal"
   cmd = autoCmd(jj.fetchTags.cmd, git.fetchTags.cmd)
 }
 

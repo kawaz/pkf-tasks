@@ -54,7 +54,7 @@ pkf run docs:check-translation-commit-lag -- {,*/,*/*/}*-ja.md
 ### 2. Pkl Listing (via `forPairs(...)`)
 
 ```pkl
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/docs.pkl" as docs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.0#/docs.pkl" as docs
 
 local myCheck: Task = docs.forPairs(new Listing<String> {
   "README-ja.md"

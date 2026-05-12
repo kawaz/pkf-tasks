@@ -2,6 +2,37 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 2.2.0 — 2026-05-13
+
+Minor release adopting pkfire 0.7.0. Bumps the library's pkfire dependency from 0.6.0 to 0.7.0, and starts using the new `visibility` field on internal building-block tasks.
+
+### Pkfire 0.7.0 adoption
+
+- `tasks/PklProject` dependency bumped: `pkfire@0.6.0` → `pkfire@0.7.0`. Consumers who amend `pkfire@0.6.0` should also bump to `0.7.0` to get the new CLI features (`pkf run -- args` default-args forwarding, `pkf list --unsorted/--all/--color`, `pkf graph --format=tree --depth=N`, `pkf lint`). Pkfire 0.7.0 schema is additive — existing Taskfiles continue to work without changes, new features are opt-in via amends URI.
+
+### `visibility = "internal"` on building-block tasks
+
+The following tasks are marked `visibility = "internal"` so they don't clutter `pkf list` by default (still callable by name; reveal with `pkf list --all`):
+
+- `vcs:fetch` — single-purpose `jj git fetch` / `git fetch`; rarely invoked directly, mostly an internal building block
+- `vcs:fetch-tags` — used internally by `semver:check-bumped` (when `needsFetchTags = true`); rarely invoked directly
+
+Other tasks (`vcs:commit`, `vcs:push`, `vcs:ensure-clean`, `docs:*`, `semver:compare`, `migrate:*`) stay `public` since they're either invoked by users directly or are gates intentionally surfaced in `pkf list`.
+
+### Migration notes
+
+No code changes required for existing consumers. To opt into pkfire 0.7.0 features:
+
+```pkl
+// before (still works, legacy behaviour)
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
+
+// after (enable --unsorted, --all, visibility, tree format, etc.)
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.7.0#/Taskfile.pkl"
+```
+
+`pkfire@0.7.0` adds new optional fields (`Rendered.taskOrder`, `RenderedTask.visibility`) without breaking older consumers — they get the old behaviour as a zero-value fallback. See [pkfire@0.7.0 release notes](https://github.com/mizchi/pkfire/releases/tag/pkfire@0.7.0).
+
 ## 2.1.1 — 2026-05-12
 
 Patch release. Bug fixes around the v2.1.0 `docs:check-translations` overhaul, plus documentation tightening.
