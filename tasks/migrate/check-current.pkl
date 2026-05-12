@@ -33,7 +33,8 @@ check: Taskfile.Task = new Taskfile.Task {
   name = "migrate:check-pkf-tasks-current"
   description = "fail if \(taskfilePath) pkf-tasks import is behind latest released tag"
   cache = false
-  cmd = """
+  cmd =
+    """
     set -euo pipefail
     latest=$(git ls-remote --tags \(repoUrl) 2>/dev/null \\
       | awk '{print $2}' \\

@@ -20,7 +20,8 @@ update: Taskfile.Task = new Taskfile.Task {
   name = "migrate:update-pkf-tasks"
   description = "update pkf-tasks import version in \(taskfilePath) to latest released tag"
   cache = false
-  cmd = """
+  cmd =
+    """
     set -euo pipefail
     latest=$(git ls-remote --tags \(repoUrl) 2>/dev/null \\
       | awk '{print $2}' \\

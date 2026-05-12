@@ -19,7 +19,7 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.4.0#/Taskfile.pkl"
 
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.10#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.11#/all.pkl" as kawaz
 
 // =============================================================================
 // CI 内部 task: smoke eval + package build
@@ -33,7 +33,7 @@ local smokeEval: Task = new {
   cmd =
     """
     set -euo pipefail
-    for module in vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl lint/pkl.pkl semver/check-bumped.pkl semver/compare.pkl all.pkl semver/all.pkl lint/all.pkl lint/all-coverage.pkl; do
+    for module in vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl lint/pkl.pkl semver/check-bumped.pkl semver/compare.pkl all.pkl semver/all.pkl lint/all.pkl lint/all-coverage.pkl migrate/check-current.pkl migrate/update-self.pkl migrate/all.pkl; do
       echo "==> pkl eval $module"
       pkl eval "$module" >/dev/null
     done
@@ -59,13 +59,11 @@ local packageBuild: Task = new {
 
 local lint: Task = new {
   name = "lint"
-  description = "lint:pkl (dogfooded from kawaz/pkf-tasks itself)"
+  description = "lint:pkl + lint:all-coverage (dogfooded from kawaz/pkf-tasks itself)"
   cache = false
-  // 0.0.10 時点: lint:all-coverage は vcs/jj.pkl, vcs/git.pkl (iface 実装、
-  // auto.pkl が間接 import) を false-positive 検出するため、自身の ci からは
-  // 一時的に外している。v0.0.11 で検出ロジックを「孤児検出」に改善予定。
-  // bump-semver 等の利用側 (iface 実装が無い) では問題なく動く。
-  deps { kawaz.lint.pkl }
+  // 0.0.11 で lint:all-coverage の孤児検出ロジックが正しく動くようになったので、
+  // 自身の ci でも有効化 (vcs/jj.pkl / vcs/git.pkl の false-positive 解消)。
+  deps { kawaz.lint.pkl; kawaz.lint.allCoverage }
   cmd = "echo lint ok"
 }
 
@@ -75,6 +73,7 @@ local ci: Task = new {
   cache = false
   deps {
     kawaz.lint.pkl
+    kawaz.lint.allCoverage
     smokeEval
     packageBuild
     kawaz.docs.checkTranslations

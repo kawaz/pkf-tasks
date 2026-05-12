@@ -14,6 +14,7 @@
 module com.github.kawaz.pkfTasks.migrate.all
 
 import "@pkfire/Taskfile.pkl"
+
 import "check-current.pkl" as checkMod
 import "update-self.pkl" as updateMod
 

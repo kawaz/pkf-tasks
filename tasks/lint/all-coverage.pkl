@@ -25,7 +25,8 @@ import "@pkfire/Taskfile.pkl"
 
 allCoverage: Taskfile.Task = new Taskfile.Task {
   name = "lint:all-coverage"
-  description = "ensure no orphan .pkl modules under tasks/ (every module is referenced from elsewhere)"
+  description =
+    "ensure no orphan .pkl modules under tasks/ (every module is referenced from elsewhere)"
   cache = false
   workdir = "tasks"
   cmd =

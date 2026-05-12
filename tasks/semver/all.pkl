@@ -10,6 +10,7 @@
 module com.github.kawaz.pkfTasks.semver.all
 
 import "@pkfire/Taskfile.pkl"
+
 import "check-bumped.pkl" as checkBumpedMod
 import "compare.pkl" as compareMod
 

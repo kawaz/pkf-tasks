@@ -11,6 +11,7 @@
 module com.github.kawaz.pkfTasks.lint.all
 
 import "@pkfire/Taskfile.pkl"
+
 import "all-coverage.pkl" as allCoverageMod
 import "pkl.pkl" as pklMod
 
