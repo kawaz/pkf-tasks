@@ -25,7 +25,7 @@ tagPrefix: String = "pkfire@"
 
 check: Taskfile.Task = new Taskfile.Task {
   name = "migrate:check-pkfire-current"
-  description = "fail if \(taskfilePath) \(tagPrefix) amends URI is behind latest released version"
+  description = "fail if \(tagPrefix) (amends URI) is behind latest release"
   cache = false
   cmd =
     """

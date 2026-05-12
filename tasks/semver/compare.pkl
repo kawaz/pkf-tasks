@@ -33,7 +33,7 @@ import "@pkfire/Taskfile.pkl"
 
 compare: Taskfile.Task = new Taskfile.Task {
   name = "semver:compare"
-  description = "SemVer compare via bump-semver (pkf run semver:compare -- <OP> <INPUT> <INPUT>)"
+  description = "SemVer compare (via bump-semver)"
   acceptsArgs = true
   cmd =
     """

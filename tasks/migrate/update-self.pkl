@@ -20,7 +20,7 @@ tagPrefix: String = "pkf-tasks@"
 
 update: Taskfile.Task = new Taskfile.Task {
   name = "migrate:update-pkf-tasks"
-  description = "update \(tagPrefix) import in \(taskfilePath) to latest released version"
+  description = "update \(tagPrefix) to latest release"
   cache = false
   cmd =
     """

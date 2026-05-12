@@ -64,8 +64,7 @@ needsFetchTags: Boolean = false
 
 check: Taskfile.Task = new Taskfile.Task {
   name = taskName
-  description =
-    "ensure the consumer-project versionFiles are bumped if triggerPaths changed since compareRef (bump-semver required)"
+  description = "ensure version file(s) bumped when trigger paths change"
   deps =
     if (needsFetchTags)
       new Listing<Taskfile.Task> { vcs.fetchTags }

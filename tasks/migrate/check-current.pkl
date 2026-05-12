@@ -28,7 +28,7 @@ tagPrefix: String = "pkf-tasks@"
 
 check: Taskfile.Task = new Taskfile.Task {
   name = "migrate:check-pkf-tasks-current"
-  description = "fail if \(taskfilePath) \(tagPrefix) import is behind latest released version"
+  description = "fail if \(tagPrefix) is behind latest release"
   cache = false
   cmd =
     """

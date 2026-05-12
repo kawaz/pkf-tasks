@@ -2,6 +2,58 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 2.1.0 — 2026-05-12
+
+Non-breaking minor release. The `docs:check-translations` task gains CLI argument support and is split into two narrower checks; task descriptions across the library are tightened to match `justfile`-style brevity.
+
+### `docs:check-translations` overhaul
+
+- **Split into 2 narrower tasks + 1 umbrella**:
+  - `docs:check-translation-commit-lag` — VCS commit timestamp 比較 (translation older than source = lag, fail)
+  - `docs:check-translation-links` — bilingual cross-link integrity (ja ↔ en convention)
+  - `docs:check-translations` — umbrella that depends on both (back-compat, behaviour unchanged for existing consumers)
+- **`acceptsArgs = true`**: pass source files / globs as CLI arguments:
+  ```
+  $ pkf run docs:check-translations -- README-ja.md docs/DESIGN-ja.md docs/MANUAL-ja.md
+  $ pkf run docs:check-translations -- '**/*-ja.md'
+  $ pkf run docs:check-translation-commit-lag -- 'docs/**/*-ja.md'   # sync だけ
+  ```
+- **Neighbor-discovery model**: for each source file, scan adjacent files with matching basenames:
+  - source `README-ja.md` → look for `README*.md` (e.g. `README.md`, `README-en.md`, `README-zh.md`); excluding the source itself, the rest are translation targets
+  - source `README.md` → look for `README[_.-]*.md` (e.g. `README-ja.md`, `README-zh.md`)
+- **Multilingual-ready** (sync): a single source can have N translation targets; each is compared by VCS timestamp
+- **Link check stays bilingual** (1 source ↔ 1 target only); multilingual sources skip link verification with a log message and pass, since the ja ↔ en link convention hasn't been generalised
+- Auto-discover (no args + empty `pairs` Listing) remains as the default fallback: every `*-ja.md` under cwd is treated as a source
+
+### `task(pairs)` renamed to `forPairs(pairs)`
+
+- The factory function is now called `forPairs` (`kawaz.docs.translations.forPairs(...)` and the docs group re-export `kawaz.docs.forPairs(...)`). The old name `task` was generic to the point of being meaningless.
+- `task(pairs)` remains as a `@Deprecated` alias for one major cycle; it will be removed in v3.0.
+
+### Task description simplification
+
+All library task descriptions are tightened to be short and grep-friendly (so `pkf list` output stays compact). Examples:
+
+| task | before | after |
+|---|---|---|
+| `vcs:commit` | `vcs commit (auto-detect: jj describe+new or git commit)` | `commit working-copy changes` |
+| `vcs:push` | `vcs push (auto-detect: jj bookmark+git push or git push)` | `push main to origin` |
+| `vcs:ensure-clean` | `working copy is clean (auto-detect: jj @ empty or git porcelain empty)` | `working copy is clean` |
+| `migrate:check-pkf-tasks-current` | `fail if Taskfile.pkl pkf-tasks@ import is behind latest released version` | `fail if pkf-tasks@ is behind latest release` |
+| `migrate:update-pkfire` | `update pkfire amends URI in Taskfile.pkl to latest released version (uses pkf migrate)` | `update pkfire@ (amends URI) to latest release` |
+| `semver:check-version-bumped` | `ensure the consumer-project versionFiles are bumped if triggerPaths changed since compareRef (bump-semver required)` | `ensure version file(s) bumped when trigger paths change` |
+| `semver:compare` | `SemVer compare via bump-semver (pkf run semver:compare -- <OP> <INPUT> <INPUT>)` | `SemVer compare (via bump-semver)` |
+
+No behavioural change; description text only.
+
+### Migration notes
+
+No action required for existing consumers. The umbrella `docs:check-translations` keeps its current semantics (now via `deps { sync, links }`) and the `task(pairs)` factory still works (deprecated alias). New consumers should prefer:
+
+- `kawaz.docs.checkTranslations` (umbrella, unchanged)
+- `kawaz.docs.checkTranslationCommitLag` / `kawaz.docs.checkTranslationLinks` for narrower control
+- `kawaz.docs.forPairs(...)` instead of `kawaz.docs.task(...)`
+
 ## 2.0.0 — 2026-05-12
 
 A same-day major bump after a post-1.0.0 audit (the v1 release was less than 24 h old, the only consumer was `kawaz/bump-semver` and the `@1` pin had not yet been used in anger). The audit found that the `lint` group was library-internal to `pkf-tasks` itself rather than a generally reusable concern, so it leaked through what `1.0.0` had just declared as a stable public surface. Cutting `2.0.0` immediately while no real consumer depended on `@1` was cheaper than keeping the leak around for a future major.

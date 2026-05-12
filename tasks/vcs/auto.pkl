@@ -50,27 +50,27 @@ local function indent(s: String): String =
 /// 残すと「jj 専用」と誤読されるため、auto.pkl で「vcs auto-detect」
 /// と明示する。
 commit = (jj.commit) {
-  description = "vcs commit (auto-detect: jj describe+new or git commit)"
+  description = "commit working-copy changes"
   cmd = autoCmd(jj.commit.cmd, git.commit.cmd)
 }
 
 push = (jj.push) {
-  description = "vcs push (auto-detect: jj bookmark+git push or git push)"
+  description = "push main to origin"
   cmd = autoCmd(jj.push.cmd, git.push.cmd)
 }
 
 fetch = (jj.fetch) {
-  description = "vcs fetch (auto-detect: jj git fetch or git fetch)"
+  description = "fetch from origin"
   cmd = autoCmd(jj.fetch.cmd, git.fetch.cmd)
 }
 
 ensureClean = (jj.ensureClean) {
-  description = "working copy is clean (auto-detect: jj @ empty or git porcelain empty)"
+  description = "working copy is clean"
   cmd = autoCmd(jj.ensureClean.cmd, git.ensureClean.cmd)
 }
 
 fetchTags = (jj.fetchTags) {
-  description = "fetch tags (auto-detect: jj git fetch+import or git fetch --tags)"
+  description = "fetch tags from origin"
   cmd = autoCmd(jj.fetchTags.cmd, git.fetchTags.cmd)
 }
 

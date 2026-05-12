@@ -1,7 +1,6 @@
 /// docs group entry. 利用者は `import ".../tasks/docs.pkl" as docs` で全機能にアクセス。
 ///
 /// 内部実装は `docs/translations.pkl`。本 entry は re-export shim。
-/// v0.0.18 で flat 配置に統一。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.docs
 
@@ -9,11 +8,21 @@ import "@pkfire/Taskfile.pkl"
 
 import "docs/translations.pkl" as translationsMod
 
-/// 翻訳ペア (`*-ja.md` / `*.md`) 整合性検査 (glob auto-discover、v0.0.17+)。
+/// VCS commit timestamp の lag を検出 (翻訳先 < 正本 = lag、失敗、v2.1.0+)。
+checkTranslationCommitLag = translationsMod.checkTranslationCommitLag
+
+/// ja ↔ en の相互リンク文字列の存在検査 (v2.1.0+)。
+checkTranslationLinks = translationsMod.checkTranslationLinks
+
+/// 上記 2 つの umbrella (deps で並列実行)。
 checkTranslations = translationsMod.checkTranslations
 
-/// 明示ペア指定で task 生成 (旧 API、`pairs` が空なら auto-discover)。
-function task(pairs: Listing<String>): Taskfile.Task = translationsMod.task(pairs)
+/// 明示ペア指定で task 生成 (v2.1.0 で旧 `task` から rename)。
+function forPairs(pairs: Listing<String>): Taskfile.Task = translationsMod.forPairs(pairs)
+
+/// @deprecated v3.0 で削除予定。代わりに `forPairs(...)` を使う。
+@Deprecated { message = "Renamed to `forPairs`. Will be removed in v3.0." }
+function task(pairs: Listing<String>): Taskfile.Task = translationsMod.forPairs(pairs)
 
 /// 一括登録用 (`tasks { ...docs.allTasks }`)。
 allTasks: Listing<Taskfile.Task> = translationsMod.allTasks

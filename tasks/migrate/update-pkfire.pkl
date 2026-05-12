@@ -19,8 +19,7 @@ tagPrefix: String = "pkfire@"
 
 update: Taskfile.Task = new Taskfile.Task {
   name = "migrate:update-pkfire"
-  description =
-    "update pkfire amends URI in \(taskfilePath) to latest released version (uses pkf migrate)"
+  description = "update \(tagPrefix) (amends URI) to latest release"
   cache = false
   cmd =
     """
