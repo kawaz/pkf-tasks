@@ -62,8 +62,8 @@ pkf run docs:check-translations -- README-ja.md docs/DESIGN-ja.md docs/MANUAL-ja
 pkf run docs:check-translations -- '**/*-ja.md'
 
 # individual sub-checks
-pkf run docs:check-translation-commit-lag -- '**/*-ja.md'   # VCS commit timestamp lag only
-pkf run docs:check-translation-links -- README-ja.md         # bilingual cross-link only
+pkf run docs:check-translation-commit-lag -- '**/*-ja.md'   # only the commit-lag sub-check (skip links)
+pkf run docs:check-translation-links -- README-ja.md         # only the links sub-check (skip commit-lag)
 ```
 
 When the source is `*.md` (e.g. English-original projects), `*[_.-]*.md` (`-ja.md` / `-zh.md` etc.) are scanned, supporting multilingual setups too. The link check is bilingual-only (sources with 3+ translation targets log a skip and pass).

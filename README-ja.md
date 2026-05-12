@@ -62,8 +62,8 @@ pkf run docs:check-translations -- README-ja.md docs/DESIGN-ja.md docs/MANUAL-ja
 pkf run docs:check-translations -- '**/*-ja.md'
 
 # 個別 check (sub task)
-pkf run docs:check-translation-commit-lag -- '**/*-ja.md'   # VCS commit timestamp の lag のみ
-pkf run docs:check-translation-links -- README-ja.md         # 相互リンク (ja ↔ en) のみ
+pkf run docs:check-translation-commit-lag -- '**/*-ja.md'   # commit-lag のみ (links は skip)
+pkf run docs:check-translation-links -- README-ja.md         # links のみ (commit-lag は skip)
 ```
 
 正本が `*.md` (en 原本など) の場合は `*[_.-]*.md` (`-ja.md` / `-zh.md` 等) を近所探索する形で多言語にも対応。相互リンクの検査は 2 言語ペアのみ (3+ 翻訳先がある正本は skip ログ + pass)。
