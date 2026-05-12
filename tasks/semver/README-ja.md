@@ -9,11 +9,12 @@ SemVer 比較を伴う gate と CLI ラッパを提供する group。`bump-semve
 - **`semver:check-bumped`** — push 前 / release 前の version bump 漏れ gate。`object-amends` で per-instance parameterize できるよう **module 参照** として公開
 - **`semver:compare`** — `bump-semver compare` の薄ラッパ (`acceptsArgs = true`)、ad-hoc CLI 利用専用
 
-## モジュール構成
+## Public entry と内部ファイル
 
-- `check-bumped.pkl` — parameterize 可能な gate module。`(kawaz.semver.checkBumped) { ... }.check` で instance 化
-- `compare.pkl` — `semver:compare` task (ad-hoc CLI)
-- `all.pkl` — sub namespace 集約。`checkBumped` は module 参照 / `compare` は task 直接公開
+- **Public entry**: `tasks/semver.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名 (`checkBumped` module 参照 / `compare` task / `allTasks`) は 1.x の public API contract に含まれる
+- **内部実装** (外部から直接 import しない、minor release でも改名・移動し得る):
+  - `check-bumped.pkl` — parameterize 可能な gate module。`(kawaz.semver.checkBumped) { ... }.check` で instance 化
+  - `compare.pkl` — `semver:compare` task (ad-hoc CLI)
 
 ## 提供 task
 
@@ -49,7 +50,7 @@ SemVer 比較を伴う gate と CLI ラッパを提供する group。`bump-semve
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 // push 前ガード (main@origin と比較)
 local checkPush = (kawaz.semver.checkBumped) {
@@ -81,6 +82,7 @@ tasks {
 
 - [上位 README](../../README-ja.md)
 - DR-0005 semver group 新設、bump-semver fallback 不採用
+- DR-0007 group 構造規約 (flat `<group>.pkl` entry、内部 `<group>/...pkl` は public API ではない)
 - DR-0019 bump-semver 側の `vcs:latest-tag(<arg>)` ref schema (`migrate:check-*` の最新 tag 取得で利用)
-- 関連 module: `tasks/vcs/auto.pkl` の `diffSummary` を内部で使用
+- 関連 module: vcs group の `diffSummary` を内部で使用
 - 関連 CLI: [`kawaz/bump-semver`](https://github.com/kawaz/bump-semver) (`brew install kawaz/tap/bump-semver`)

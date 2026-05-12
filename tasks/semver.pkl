@@ -1,0 +1,24 @@
+/// semver group entry. 利用者は `import ".../tasks/semver.pkl" as semver` で全機能にアクセス。
+///
+/// `bump-semver` CLI 必須。v0.0.18 で flat 配置に統一 (旧 `semver/all.pkl` から移行)。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.semver
+
+import "@pkfire/Taskfile.pkl"
+
+import "semver/check-bumped.pkl" as checkBumpedMod
+import "semver/compare.pkl" as compareMod
+
+/// `checkBumped` は **module 参照** として公開 (利用側で
+/// `(semver.checkBumped) { compareRefCmd = ...; ... }.check` のように
+/// parameterize する想定)。
+checkBumped = checkBumpedMod
+
+/// `compare` は **task 直接** 公開 (acceptsArgs = true の ad-hoc CLI 用)。
+compare = compareMod.compare
+
+/// 一括登録用 (`tasks { ...semver.allTasks }`)。`checkBumped` は module 参照
+/// のため含めない (利用側で parameterize して instance task を作る前提)。
+allTasks: Listing<Taskfile.Task> = new {
+  compare
+}

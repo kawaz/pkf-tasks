@@ -4,11 +4,13 @@
 
 A single Task that validates translation pairs (`*-ja.md` / `*.md`) per the kawaz `docs-structure.md` rule — existence, mutual links, and commit-timestamp ordering — in one shot. The expected workflow is to wire it into `push`'s deps so that "forgot the English translation" and "updated the English version but left the Japanese original behind" are caught at push time.
 
-Implemented as a single Task using a bash for-loop (no `Listing<Task>` fan-out). When per-pair cache granularity isn't needed, one Task is enough — this is the pkfire convention. The internal bash function for fetching commit timestamps auto-dispatches between jj and git (same runtime-detection strategy as `tasks/vcs/auto.pkl`).
+Implemented as a single Task using a bash for-loop (no `Listing<Task>` fan-out). When per-pair cache granularity isn't needed, one Task is enough — this is the pkfire convention. The internal bash function for fetching commit timestamps auto-dispatches between jj and git (same runtime-detection strategy as the vcs group's `auto.pkl`).
 
-## Module layout
+## Public entry vs internal files
 
-- `translations.pkl` — exports the translation-pair integrity-check Task plus a `task(pairs)` function for consumers who want to verify a different set of pairs
+- **Public entry**: `tasks/docs.pkl` — the only file consumers should `import`. Exported field names (`checkTranslations`, `task(pairs)`, `allTasks`) are part of the 1.x public API contract
+- **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
+  - `translations.pkl` — the translation-pair integrity-check Task plus a `task(pairs)` function. Re-exported from `tasks/docs.pkl`
 
 ## Provided tasks
 
@@ -30,11 +32,11 @@ tasks {
 }
 ```
 
-To override the pair set, build a separate Task with the `task(pairs)` function in `translations.pkl`:
+To override the pair set, build a separate Task with the `task(pairs)` function exposed on the group entry:
 
 ```pkl
-import "package://...pkf-tasks@0.0.16#/docs/translations.pkl" as translations
-local myCheck = translations.task(new Listing<String> {
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/docs.pkl" as docs
+local myCheck = docs.task(new Listing<String> {
   "README"
   "docs/CONTRIBUTING"
 })
@@ -48,4 +50,5 @@ tasks { myCheck }
 
 - [Top README](../../README.md)
 - `~/.claude/rules/docs-structure.md` — origin of the translation-pair naming convention and link templates
-- Related module: internally follows the jj/git runtime-dispatch pattern from `tasks/vcs/auto.pkl`
+- DR-0007 group structure convention (flat `<group>.pkl` entry; internal `<group>/...pkl` files are not public API)
+- Related module: internally follows the jj/git runtime-dispatch pattern from the vcs group

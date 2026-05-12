@@ -1,6 +1,44 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.17`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1`) is supported.
+
+## 1.0.0 — 2026-05-12
+
+The module entry API has stabilised after extensive 0.0.x iteration (17 releases). Going forward, **breaking changes go in major bumps**; the entry shape (`tasks/<group>.pkl` flat) and task names are part of the public contract.
+
+### Breaking — flat group entry layout
+
+- **Each group exposes a flat entry at `tasks/<group>.pkl`** (`vcs.pkl` / `docs.pkl` / `lint.pkl` / `semver.pkl` / `migrate.pkl`) instead of `<group>/all.pkl` (lint / semver / migrate) or `<group>/auto.pkl` (vcs) or `<group>/translations.pkl` (docs). The internal implementation files (`vcs/auto.pkl` etc.) are still present under each `<group>/` dir but are no longer considered the public entry — they are now implementation details.
+- **Removed** (replaced by flat entries): `tasks/lint/all.pkl` / `tasks/semver/all.pkl` / `tasks/migrate/all.pkl`.
+- **Consumer migration**:
+  ```pkl
+  // Before (0.0.x):
+  import "package://.../pkf-tasks@<v>#/vcs/auto.pkl" as vcs
+  import "package://.../pkf-tasks@<v>#/docs/translations.pkl" as docs
+  import "package://.../pkf-tasks@<v>#/lint/all.pkl" as lint
+  // (bundled all.pkl was already in place since 0.0.10)
+
+  // After (1.0.0+):
+  import "package://.../pkf-tasks@1.0.0#/vcs.pkl" as vcs
+  import "package://.../pkf-tasks@1.0.0#/docs.pkl" as docs
+  import "package://.../pkf-tasks@1.0.0#/lint.pkl" as lint
+  // (bundled all.pkl works the same)
+  ```
+- `tasks/all.pkl` (bundled aggregation entry) is **unchanged** for consumers; the internal imports have moved from `<group>/all.pkl` to `<group>.pkl`, so `kawaz.vcs.*` / `kawaz.docs.*` / `kawaz.lint.*` / `kawaz.semver.*` / `kawaz.migrate.*` work identically.
+
+### Stability statement
+
+Public surface that is **part of the 1.x contract** (breaking changes require a 2.x bump):
+
+- `tasks/<group>.pkl` entry FQN + exported fields (task references + `allTasks` Listing + Pkl function helpers in vcs)
+- `tasks/all.pkl` bundled entry + `kawaz.<group>.<field>` namespace shape
+- Public task names (`vcs:commit` / `docs:check-translations` / `lint:pkl` / `lint:all-coverage` / `semver:check-bumped` / `semver:compare` / `migrate:check-pkf-tasks-current` etc.)
+
+Public surface that is **not part of the 1.x contract** (may change in minor/patch):
+
+- Internal implementation files under `<group>/` directories (`vcs/iface.pkl` / `vcs/jj.pkl` / `vcs/git.pkl` / `vcs/auto.pkl` / `docs/translations.pkl` / `lint/pkl.pkl` / `lint/all-coverage.pkl` / `semver/check-bumped.pkl` / `semver/compare.pkl` / `migrate/*.pkl`) — consumers should not import these directly
+- CLI command shapes inside `cmd` strings (bash internals)
+- Default values for parameterised tasks (may evolve for better defaults)
 
 ## 0.0.17 — 2026-05-12
 

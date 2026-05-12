@@ -1,0 +1,19 @@
+/// docs group entry. 利用者は `import ".../tasks/docs.pkl" as docs` で全機能にアクセス。
+///
+/// 内部実装は `docs/translations.pkl`。本 entry は re-export shim。
+/// v0.0.18 で flat 配置に統一。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.docs
+
+import "@pkfire/Taskfile.pkl"
+
+import "docs/translations.pkl" as translationsMod
+
+/// 翻訳ペア (`*-ja.md` / `*.md`) 整合性検査 (glob auto-discover、v0.0.17+)。
+checkTranslations = translationsMod.checkTranslations
+
+/// 明示ペア指定で task 生成 (旧 API、`pairs` が空なら auto-discover)。
+function task(pairs: Listing<String>): Taskfile.Task = translationsMod.task(pairs)
+
+/// 一括登録用 (`tasks { ...docs.allTasks }`)。
+allTasks: Listing<Taskfile.Task> = translationsMod.allTasks

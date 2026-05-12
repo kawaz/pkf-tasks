@@ -6,12 +6,14 @@ jj / git どちらの管理リポでも透過的に動く VCS task と、`bump-s
 
 Pkl は pure 評価で FS state を見られないため、評価時に jj/git を選んで module を切り替えるアプローチは不可。代わりに jj.pkl / git.pkl 双方から cmd を取り出し、bash の if-else で連結した cmd を提供する。`.jj` を `.git` より優先 (kawaz の git-bare + jj-workspace 構成は両方並存するが jj が正)。
 
-## モジュール構成
+## Public entry と内部ファイル
 
-- `iface.pkl` — abstract module。`commit` / `push` / `fetch` / `ensureClean` / `fetchTags` の interface 定義 + `allTasks: Listing<Task>` 集約プロパティ
-- `jj.pkl` — jj 実装 (`extends "iface.pkl"`)
-- `git.pkl` — git 実装 (`extends "iface.pkl"`)
-- `auto.pkl` — 利用者向け entry point。jj.pkl の各 Task 構造 (params / env / cache) を base に、cmd と description を auto-detect 版で上書き。`diffSummary` / `readAtRef` の Pkl helper 関数も提供
+- **Public entry**: `tasks/vcs.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名は 1.x の public API contract に含まれる
+- **内部実装** (外部から直接 import しない、minor release でも改名・移動し得る):
+  - `iface.pkl` — abstract module。`commit` / `push` / `fetch` / `ensureClean` / `fetchTags` の interface 定義 + `allTasks: Listing<Task>` 集約プロパティ
+  - `jj.pkl` — jj 実装 (`extends "iface.pkl"`)
+  - `git.pkl` — git 実装 (`extends "iface.pkl"`)
+  - `auto.pkl` — 実行時 dispatch の実体。jj.pkl の各 Task 構造 (params / env / cache) を base に、cmd と description を auto-detect 版で上書き。`diffSummary` / `readAtRef` の Pkl helper 関数も提供。`tasks/vcs.pkl` が re-export する
 
 ## 提供 task
 
@@ -73,17 +75,17 @@ cmd = """
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
   ...kawaz.vcs.allTasks   // commit/push/fetch/ensure-clean/fetch-tags 一括登録
 }
 ```
 
-個別 import (旧スタイル) も可:
+個別 import (vcs group のみ):
 
 ```pkl
-import "package://...pkf-tasks@0.0.16#/vcs/auto.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/vcs.pkl" as vcs
 tasks { vcs.push; vcs.ensureClean }
 ```
 
@@ -94,3 +96,4 @@ tasks { vcs.push; vcs.ensureClean }
 - DR-0002 runtime VCS dispatch
 - DR-0005 helper 関数 (`diffSummary` / `readAtRef`) を vcs group に置く判断
 - DR-0006 vcs as knowledge storage
+- DR-0007 group 構造規約 (flat `<group>.pkl` entry、内部 `<group>/...pkl` は public API ではない)

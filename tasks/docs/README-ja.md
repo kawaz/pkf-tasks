@@ -4,11 +4,13 @@
 
 kawaz `docs-structure.md` ルールに基づく翻訳ペア (`*-ja.md` / `*.md`) の存在 / 相互リンク / commit timestamp 順序を一括検証する。`push` の deps に組み込むことで「英訳忘れ」「先に英訳を更新して原本 (-ja) を放置」を push 時に検知する想定。
 
-1 Task で bash の for ループ (Listing<Task> 展開しない) で実装。cache 独立粒度が要らない処理は 1 Task で十分という pkfire 流儀。VCS の commit timestamp 取得は内部 bash 関数で jj / git 自動切替 (`tasks/vcs/auto.pkl` と同じ実行時判定方針)。
+1 Task で bash の for ループ (Listing<Task> 展開しない) で実装。cache 独立粒度が要らない処理は 1 Task で十分という pkfire 流儀。VCS の commit timestamp 取得は内部 bash 関数で jj / git 自動切替 (vcs group の `auto.pkl` と同じ実行時判定方針)。
 
-## モジュール構成
+## Public entry と内部ファイル
 
-- `translations.pkl` — 翻訳ペア整合性チェックの Task と、利用側で別ペアセットを検証したい場合の `task(pairs)` 関数を export
+- **Public entry**: `tasks/docs.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名 (`checkTranslations` / `task(pairs)` / `allTasks`) は 1.x の public API contract に含まれる
+- **内部実装** (外部から直接 import しない、minor release でも改名・移動し得る):
+  - `translations.pkl` — 翻訳ペア整合性チェックの Task と、利用側で別ペアセットを検証したい場合の `task(pairs)` 関数。`tasks/docs.pkl` が re-export する
 
 ## 提供 task
 
@@ -30,11 +32,11 @@ tasks {
 }
 ```
 
-ペアを上書きしたい場合は `translations.pkl` の `task(pairs)` 関数を使って別 Task を作る:
+ペアを上書きしたい場合は group entry が公開する `task(pairs)` 関数を使って別 Task を作る:
 
 ```pkl
-import "package://...pkf-tasks@0.0.16#/docs/translations.pkl" as translations
-local myCheck = translations.task(new Listing<String> {
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/docs.pkl" as docs
+local myCheck = docs.task(new Listing<String> {
   "README"
   "docs/CONTRIBUTING"
 })
@@ -48,4 +50,5 @@ tasks { myCheck }
 
 - [上位 README](../../README-ja.md)
 - `~/.claude/rules/docs-structure.md` — 翻訳ペア命名規約とリンクテンプレートの定義元
-- 関連 module: `tasks/vcs/auto.pkl` の jj/git 実行時判定パターンを内部で踏襲
+- DR-0007 group 構造規約 (flat `<group>.pkl` entry、内部 `<group>/...pkl` は public API ではない)
+- 関連 module: vcs group の `auto.pkl` の jj/git 実行時判定パターンを内部で踏襲

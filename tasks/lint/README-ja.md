@@ -4,11 +4,12 @@
 
 任意プロジェクトに共通する lint (Pkl format) と、pkf-tasks library 自身の整合性チェック (孤児 module 検出) を提供する。言語ごとの lint (gofmt / cargo fmt / rustfmt 等) は本 group に含めず、利用側で `lint:pkl` を自前 umbrella task の deps に並べる運用。
 
-## モジュール構成
+## Public entry と内部ファイル
 
-- `pkl.pkl` — `lint:pkl` task (Pkl ファイル全体に `pkl format -w` を当てる)
-- `all-coverage.pkl` — `lint:all-coverage` task (library 開発者向け、孤児 module 検出)
-- `all.pkl` — group sub namespace 集約 (`kawaz.lint.pkl` / `kawaz.lint.allCoverage` でアクセス)
+- **Public entry**: `tasks/lint.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名 (`pkl` / `allCoverage` / `allTasks`) は 1.x の public API contract に含まれる
+- **内部実装** (外部から直接 import しない、minor release でも改名・移動し得る):
+  - `pkl.pkl` — `lint:pkl` task (Pkl ファイル全体に `pkl format -w` を当てる)
+  - `all-coverage.pkl` — `lint:all-coverage` task (library 開発者向け、孤児 module 検出)
 
 ## 提供 task
 
@@ -20,7 +21,7 @@
 - 利用例: 利用側の `lint` umbrella task の deps に組み込む
 
 ```pkl
-import "package://...pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 local lint = new Taskfile.Task {
   name = "lint"
   deps { goLint; kawaz.lint.pkl }
@@ -52,4 +53,4 @@ tasks {
 ## 関連
 
 - [上位 README](../../README-ja.md)
-- DR-0007 group 規約 (`<group>/all.pkl` 集約 + sub namespace 公開パターン)
+- DR-0007 group 構造規約 (flat `<group>.pkl` entry、内部 `<group>/...pkl` は public API ではない)

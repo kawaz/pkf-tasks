@@ -5,45 +5,39 @@
 ///
 ///   tasks {
 ///     ...kawaz.vcs.allTasks
-///     kawaz.docs.checkTranslations
+///     ...kawaz.docs.allTasks
 ///     ...kawaz.lint.allTasks
+///     ...kawaz.migrate.allTasks
 ///     kawaz.semver.compare
 ///     (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check
 ///   }
 ///
-/// kawaz/* の各リポジトリは pkf-tasks の全機能を使う前提なので、個別 import
-/// より集約 import の方が DRY。
-///
-/// 維持: `tasks/lint/all-coverage.pkl` が `tasks/` 配下の `*.pkl` (本ファイル
-/// 自身 / Taskfile.pkl / PklProject* / iface.pkl / **/all.pkl は除く) が全て
-/// 適切な namespace で re-export されているか検証する。
+/// kawaz/* の各リポジトリは pkf-tasks の全機能を使う前提なので、集約 import が
+/// DRY。部分採用したい場合は `tasks/<group>.pkl` 個別 import (v1.0.0+) も可。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.all
 
-import "docs/translations.pkl" as docsMod
-import "lint/all.pkl" as lintMod
-import "migrate/all.pkl" as migrateMod
-import "semver/all.pkl" as semverMod
-import "vcs/auto.pkl" as vcsMod
+import "docs.pkl" as docsMod
+import "lint.pkl" as lintMod
+import "migrate.pkl" as migrateMod
+import "semver.pkl" as semverMod
+import "vcs.pkl" as vcsMod
 
-/// vcs: jj/git auto-dispatch task primitives (`commit` / `push` / `fetch` /
-/// `ensureClean` / `fetchTags`) + Pkl function helpers (`diffSummary` /
-/// `readAtRef`)。`...kawaz.vcs.allTasks` で全 task を一括登録可能。
+/// vcs: jj/git auto-dispatch task primitives + Pkl function helpers。
 vcs = vcsMod
 
-/// docs: 翻訳ペア整合性チェック (`docs:check-translations`)。
+/// docs: 翻訳ペア整合性チェック。
 docs = docsMod
 
-/// lint: 言語横断の Pkl format (`kawaz.lint.pkl`) と all.pkl 群の漏れ検出
+/// lint: 言語横断の Pkl format (`kawaz.lint.pkl`) + 孤児 module 検出
 /// (`kawaz.lint.allCoverage`)。
 lint = lintMod
 
-/// semver: SemVer 関連 gate / 汎用 compare。
-/// - `semver.checkBumped` は module 参照 (parameterize 用、`(...).check`)
-/// - `semver.compare` は task 直接 (ad-hoc CLI 用)
+/// semver: SemVer gate (`checkBumped` は module 参照、parameterize 用) +
+/// ad-hoc compare (`compare` は task 直接)。`bump-semver` CLI 必須。
 semver = semverMod
 
-/// migrate: pkf-tasks 自身の version 追従 gate + action。
-/// - `migrate.check` は push の deps に置いて古い import を検知 (gate)
-/// - `migrate.update` は利用者が手動で実行して Taskfile.pkl を最新に書き換え
+/// migrate: 利用側 Taskfile.pkl の upstream 追従 gate + action。
+/// - `checkPkfTasks` / `updatePkfTasks` (pkf-tasks `import` URI 対象)
+/// - `checkPkfire` / `updatePkfire` (pkfire `amends` URI 対象)
 migrate = migrateMod

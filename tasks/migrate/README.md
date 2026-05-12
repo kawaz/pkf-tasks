@@ -6,13 +6,14 @@ A group that detects whether the consumer's `Taskfile.pkl` is using `pkf-tasks@<
 
 The design philosophy is the same as `semver:check-*`: **push's deps = the discovery trigger**. Wire each `check-*` task into `push`'s deps so that a stale dependency pin fails at push time, and recover with the matching `update-*` task.
 
-## Module layout
+## Public entry vs internal files
 
-- `check-current.pkl` — `migrate:check-pkf-tasks-current` (pkf-tasks tracking gate)
-- `update-self.pkl` — `migrate:update-pkf-tasks` (pkf-tasks auto-update action, sed in-place)
-- `check-pkfire-current.pkl` — `migrate:check-pkfire-current` (pkfire tracking gate)
-- `update-pkfire.pkl` — `migrate:update-pkfire` (pkfire auto-update action, wraps `pkf migrate`)
-- `all.pkl` — sub-namespace aggregation (`kawaz.migrate.checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire`)
+- **Public entry**: `tasks/migrate.pkl` — the only file consumers should `import`. Exported field names (`checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire` / `allTasks`) are part of the 1.x public API contract
+- **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
+  - `check-current.pkl` — `migrate:check-pkf-tasks-current` (pkf-tasks tracking gate)
+  - `update-self.pkl` — `migrate:update-pkf-tasks` (pkf-tasks auto-update action, sed in-place)
+  - `check-pkfire-current.pkl` — `migrate:check-pkfire-current` (pkfire tracking gate)
+  - `update-pkfire.pkl` — `migrate:update-pkfire` (pkfire auto-update action, wraps `pkf migrate`)
 
 ## Provided tasks
 
@@ -53,7 +54,7 @@ The design philosophy is the same as `semver:check-*`: **push's deps = the disco
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
   ...kawaz.migrate.allTasks   // register all 4 tasks
@@ -87,6 +88,6 @@ pkf run 'migrate:update-*'   # recovery after a check failure (run every update-
 
 - [Top README](../../README.md)
 - DR-0003 tag naming (`pkf-tasks@<version>` / `pkfire@<version>`)
-- DR-0007 group convention (sub-namespace aggregation + symmetric naming)
+- DR-0007 group structure convention (flat `<group>.pkl` entry + symmetric naming; internal `<group>/...pkl` files are not public API)
 - DR-0019 bump-semver's `vcs:latest-tag(<arg>)` ref schema (used for latest-tag retrieval in this group)
 - Related CLIs: [`kawaz/bump-semver`](https://github.com/kawaz/bump-semver) (`brew install kawaz/tap/bump-semver`) / [`mizchi/pkfire`](https://github.com/mizchi/pkfire)'s `pkf migrate`

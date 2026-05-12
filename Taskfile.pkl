@@ -33,7 +33,7 @@ local smokeEval: Task = new {
   cmd =
     """
     set -euo pipefail
-    for module in vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl lint/pkl.pkl semver/check-bumped.pkl semver/compare.pkl all.pkl semver/all.pkl lint/all.pkl lint/all-coverage.pkl migrate/check-current.pkl migrate/update-self.pkl migrate/all.pkl; do
+    for module in vcs.pkl docs.pkl lint.pkl semver.pkl migrate.pkl all.pkl vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl lint/pkl.pkl lint/all-coverage.pkl semver/check-bumped.pkl semver/compare.pkl migrate/check-current.pkl migrate/update-self.pkl migrate/check-pkfire-current.pkl migrate/update-pkfire.pkl; do
       echo "==> pkl eval $module"
       pkl eval "$module" >/dev/null
     done

@@ -1,0 +1,37 @@
+/// migrate group entry. 利用者は `import ".../tasks/migrate.pkl" as migrate` で全機能にアクセス。
+///
+/// upstream 追従ペア (gate × 2 + action × 2、`bump-semver` CLI 必須):
+///   - pkf-tasks 用 (`import` URI): `checkPkfTasks` / `updatePkfTasks`
+///   - pkfire 用 (`amends` URI): `checkPkfire` / `updatePkfire`
+///
+/// 設計思想「push の deps = 気づき発火点」(semver:check-* と同じ流儀)。
+/// v0.0.18 で flat 配置に統一 (旧 `migrate/all.pkl` から移行)。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.migrate
+
+import "@pkfire/Taskfile.pkl"
+
+import "migrate/check-current.pkl" as checkPkfTasksMod
+import "migrate/check-pkfire-current.pkl" as checkPkfireMod
+import "migrate/update-pkfire.pkl" as updatePkfireMod
+import "migrate/update-self.pkl" as updatePkfTasksMod
+
+/// `migrate:check-pkf-tasks-current` task (gate)。
+checkPkfTasks = checkPkfTasksMod.check
+
+/// `migrate:update-pkf-tasks` task (action)。
+updatePkfTasks = updatePkfTasksMod.update
+
+/// `migrate:check-pkfire-current` task (gate)。
+checkPkfire = checkPkfireMod.check
+
+/// `migrate:update-pkfire` task (action)。pkfire 0.6.0+ の `pkf migrate` ラップ。
+updatePkfire = updatePkfireMod.update
+
+/// 一括登録用 (`tasks { ...migrate.allTasks }`)。
+allTasks: Listing<Taskfile.Task> = new {
+  checkPkfTasks
+  updatePkfTasks
+  checkPkfire
+  updatePkfire
+}

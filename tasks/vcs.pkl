@@ -1,0 +1,39 @@
+/// vcs group entry. 利用者は `import ".../tasks/vcs.pkl" as vcs` で全機能にアクセス。
+///
+/// 内部実装は `vcs/{iface,jj,git,auto}.pkl` に分かれている。本 entry は
+/// `vcs/auto.pkl` (jj/git auto-dispatch を行う実体) の export を re-export する
+/// shim。`vcs/iface.pkl` の abstract module + `vcs/{jj,git}.pkl` の実装 +
+/// `vcs/auto.pkl` の dispatch という 3 層構造はそのまま保持 (DR-0001 / DR-0002)。
+///
+/// v0.0.18 で flat 配置に統一 (旧 `vcs/auto.pkl` 直接 import から移行)。
+/// 命名規約は DR-0007 (group 構造規約) 参照。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.vcs
+
+import "@pkfire/Taskfile.pkl"
+
+import "vcs/auto.pkl" as autoMod
+
+/// jj describe+new or git commit (auto-detect)。
+commit = autoMod.commit
+
+/// jj bookmark+git push or git push (auto-detect)。
+push = autoMod.push
+
+/// jj git fetch or git fetch (auto-detect)。
+fetch = autoMod.fetch
+
+/// working copy が clean (`@` empty / porcelain empty) かを検査 (auto-detect)。
+ensureClean = autoMod.ensureClean
+
+/// tag 同期 (jj: `jj git fetch || true; jj git import || true` / git: `git fetch --tags origin`)。
+fetchTags = autoMod.fetchTags
+
+/// 任意 ref と paths の diff を取る bash 断片を返す helper (DR-0005)。
+function diffSummary(ref: String, paths: List<String>): String = autoMod.diffSummary(ref, paths)
+
+/// 任意 ref のファイル内容を取る bash 断片を返す helper (DR-0005)。
+function readAtRef(ref: String, path: String): String = autoMod.readAtRef(ref, path)
+
+/// 一括登録用 (`tasks { ...vcs.allTasks }`)。
+allTasks: Listing<Taskfile.Task> = autoMod.allTasks

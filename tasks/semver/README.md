@@ -9,11 +9,12 @@ Two main use cases:
 - **`semver:check-bumped`** — pre-push / pre-release gate against forgotten version bumps. Exposed as a **module reference** so consumers can parameterise it per-instance via `object-amends`
 - **`semver:compare`** — thin wrapper around `bump-semver compare` (`acceptsArgs = true`), strictly for ad-hoc CLI use
 
-## Module layout
+## Public entry vs internal files
 
-- `check-bumped.pkl` — parameterisable gate module. Instantiate via `(kawaz.semver.checkBumped) { ... }.check`
-- `compare.pkl` — `semver:compare` task (ad-hoc CLI)
-- `all.pkl` — sub-namespace aggregation. `checkBumped` is exposed as a module reference, `compare` as a direct task
+- **Public entry**: `tasks/semver.pkl` — the only file consumers should `import`. Exported field names (`checkBumped` module reference, `compare` task, `allTasks`) are part of the 1.x public API contract
+- **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
+  - `check-bumped.pkl` — parameterisable gate module. Instantiate via `(kawaz.semver.checkBumped) { ... }.check`
+  - `compare.pkl` — `semver:compare` task (ad-hoc CLI)
 
 ## Provided tasks
 
@@ -49,7 +50,7 @@ Only `semver:compare` goes through `allTasks`; `check-bumped` is instantiated:
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 // pre-push guard (compare against main@origin)
 local checkPush = (kawaz.semver.checkBumped) {
@@ -81,6 +82,7 @@ tasks {
 
 - [Top README](../../README.md)
 - DR-0005 semver group, decision not to adopt a bump-semver fallback
+- DR-0007 group structure convention (flat `<group>.pkl` entry; internal `<group>/...pkl` files are not public API)
 - DR-0019 bump-semver's `vcs:latest-tag(<arg>)` ref schema (used for latest-tag retrieval in `migrate:check-*`)
-- Related module: internally uses `diffSummary` from `tasks/vcs/auto.pkl`
+- Related module: internally uses `diffSummary` from the vcs group
 - Related CLI: [`kawaz/bump-semver`](https://github.com/kawaz/bump-semver) (`brew install kawaz/tap/bump-semver`)

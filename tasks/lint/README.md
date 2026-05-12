@@ -4,11 +4,12 @@
 
 Provides lint that's common to any project (Pkl format) plus a self-consistency check for the pkf-tasks library itself (orphan-module detection). Language-specific lint (gofmt / cargo fmt / rustfmt, etc.) lives outside this group; consumers wire `lint:pkl` into the deps of their own umbrella lint task.
 
-## Module layout
+## Public entry vs internal files
 
-- `pkl.pkl` — `lint:pkl` task (runs `pkl format -w` over every Pkl file)
-- `all-coverage.pkl` — `lint:all-coverage` task (library-developer use, orphan-module detection)
-- `all.pkl` — group sub-namespace aggregation (accessible as `kawaz.lint.pkl` / `kawaz.lint.allCoverage`)
+- **Public entry**: `tasks/lint.pkl` — the only file consumers should `import`. Exported field names (`pkl`, `allCoverage`, `allTasks`) are part of the 1.x public API contract
+- **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
+  - `pkl.pkl` — `lint:pkl` task (runs `pkl format -w` over every Pkl file)
+  - `all-coverage.pkl` — `lint:all-coverage` task (library-developer use, orphan-module detection)
 
 ## Provided tasks
 
@@ -20,7 +21,7 @@ Provides lint that's common to any project (Pkl format) plus a self-consistency 
 - Example: wire into the consumer's `lint` umbrella task deps
 
 ```pkl
-import "package://...pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 local lint = new Taskfile.Task {
   name = "lint"
   deps { goLint; kawaz.lint.pkl }
@@ -52,4 +53,4 @@ Consumer projects typically only need `kawaz.lint.pkl` inside their own umbrella
 ## Related
 
 - [Top README](../../README.md)
-- DR-0007 group convention (`<group>/all.pkl` aggregation + sub-namespace exposure pattern)
+- DR-0007 group structure convention (flat `<group>.pkl` entry; internal `<group>/...pkl` files are not public API)

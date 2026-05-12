@@ -6,12 +6,14 @@ VCS tasks that work transparently on either jj- or git-managed repositories, plu
 
 Pkl evaluates purely and cannot observe filesystem state, so picking jj.pkl or git.pkl at eval time is not viable. Instead we pull the cmd fragments from both jj.pkl and git.pkl and stitch them with a bash if-else. `.jj` takes precedence over `.git` (the kawaz git-bare + jj-workspace layout has both, but jj is authoritative).
 
-## Module layout
+## Public entry vs internal files
 
-- `iface.pkl` — abstract module. Interface definitions for `commit` / `push` / `fetch` / `ensureClean` / `fetchTags` plus the `allTasks: Listing<Task>` aggregation property
-- `jj.pkl` — jj implementation (`extends "iface.pkl"`)
-- `git.pkl` — git implementation (`extends "iface.pkl"`)
-- `auto.pkl` — consumer-facing entry point. Uses each jj.pkl Task structure (params / env / cache) as a base and overrides cmd and description with the auto-detect variant. Also exports the `diffSummary` / `readAtRef` Pkl helper functions
+- **Public entry**: `tasks/vcs.pkl` — the only file consumers should `import`. Exported field names are part of the 1.x public API contract
+- **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
+  - `iface.pkl` — abstract module. Interface definitions for `commit` / `push` / `fetch` / `ensureClean` / `fetchTags` plus the `allTasks: Listing<Task>` aggregation property
+  - `jj.pkl` — jj implementation (`extends "iface.pkl"`)
+  - `git.pkl` — git implementation (`extends "iface.pkl"`)
+  - `auto.pkl` — runtime-dispatch implementation. Uses each jj.pkl Task structure (params / env / cache) as a base and overrides cmd and description with the auto-detect variant. Also exports the `diffSummary` / `readAtRef` Pkl helper functions. Re-exported from `tasks/vcs.pkl`
 
 ## Provided tasks
 
@@ -73,17 +75,17 @@ Bash command substitution that returns a file's contents at an arbitrary ref. jj
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
   ...kawaz.vcs.allTasks   // bulk-register commit/push/fetch/ensure-clean/fetch-tags
 }
 ```
 
-Per-module imports (old style) still work:
+Per-module import (vcs group only):
 
 ```pkl
-import "package://...pkf-tasks@0.0.16#/vcs/auto.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/vcs.pkl" as vcs
 tasks { vcs.push; vcs.ensureClean }
 ```
 
@@ -94,3 +96,4 @@ tasks { vcs.push; vcs.ensureClean }
 - DR-0002 runtime VCS dispatch
 - DR-0005 placement of helper functions (`diffSummary` / `readAtRef`) in the vcs group
 - DR-0006 vcs as knowledge storage
+- DR-0007 group structure convention (flat `<group>.pkl` entry; internal `<group>/...pkl` files are not public API)

@@ -6,13 +6,14 @@
 
 設計思想は `semver:check-*` と同じ「**push の deps = 気づき発火点**」: `check-*` task を `push` の deps に挟むと、利用側 project の依存 pin が遅れていたら push 時に fail し、`update-*` task で復旧する流れ。
 
-## モジュール構成
+## Public entry と内部ファイル
 
-- `check-current.pkl` — `migrate:check-pkf-tasks-current` (pkf-tasks の追従 gate)
-- `update-self.pkl` — `migrate:update-pkf-tasks` (pkf-tasks の自動更新 action、sed in-place)
-- `check-pkfire-current.pkl` — `migrate:check-pkfire-current` (pkfire の追従 gate)
-- `update-pkfire.pkl` — `migrate:update-pkfire` (pkfire の自動更新 action、`pkf migrate` ラップ)
-- `all.pkl` — sub namespace 集約 (`kawaz.migrate.checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire`)
+- **Public entry**: `tasks/migrate.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名 (`checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire` / `allTasks`) は 1.x の public API contract に含まれる
+- **内部実装** (外部から直接 import しない、minor release でも改名・移動し得る):
+  - `check-current.pkl` — `migrate:check-pkf-tasks-current` (pkf-tasks の追従 gate)
+  - `update-self.pkl` — `migrate:update-pkf-tasks` (pkf-tasks の自動更新 action、sed in-place)
+  - `check-pkfire-current.pkl` — `migrate:check-pkfire-current` (pkfire の追従 gate)
+  - `update-pkfire.pkl` — `migrate:update-pkfire` (pkfire の自動更新 action、`pkf migrate` ラップ)
 
 ## 提供 task
 
@@ -53,7 +54,7 @@
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
   ...kawaz.migrate.allTasks   // 4 task 全部登録
@@ -87,6 +88,6 @@ pkf run 'migrate:update-*'   # check fail 時の救済 (全 update 系を一括)
 
 - [上位 README](../../README-ja.md)
 - DR-0003 tag 命名 (`pkf-tasks@<version>` / `pkfire@<version>`)
-- DR-0007 group 規約 (sub namespace 集約 + 対称命名)
+- DR-0007 group 構造規約 (flat `<group>.pkl` entry + 対称命名、内部 `<group>/...pkl` は public API ではない)
 - DR-0019 bump-semver の `vcs:latest-tag(<arg>)` ref schema (本 group の最新 tag 取得で利用)
 - 関連 CLI: [`kawaz/bump-semver`](https://github.com/kawaz/bump-semver) (`brew install kawaz/tap/bump-semver`) / [`mizchi/pkfire`](https://github.com/mizchi/pkfire) の `pkf migrate`
