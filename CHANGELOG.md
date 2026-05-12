@@ -1,6 +1,26 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.15`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.16`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.16 — 2026-05-12
+
+### Breaking
+
+- **`tasks/migrate/all.pkl` の export field を対称命名に rename**:
+  - `kawaz.migrate.check` → `kawaz.migrate.checkPkfTasks`
+  - `kawaz.migrate.update` → `kawaz.migrate.updatePkfTasks`
+  - `checkPkfire` / `updatePkfire` はそのまま
+  
+  v0.0.15 で `checkPkfire` / `updatePkfire` を追加した時点で「`check` の対象が暗黙 (pkf-tasks)」が規約破綻していた。4 task 全てに対象 suffix を明示することで `pkf list` や利用側 Taskfile.pkl で誤読がなくなる。task name 自体 (`migrate:check-pkf-tasks-current` 等) は対象明示済なので変更なし、Pkl module の field 名のみ。
+  
+  **利用側の migration**:
+  ```pkl
+  // 旧 (0.0.15 まで)
+  deps { kawaz.migrate.check }
+  
+  // 新 (0.0.16+)
+  deps { kawaz.migrate.checkPkfTasks }
+  ```
 
 ## 0.0.15 — 2026-05-12
 
