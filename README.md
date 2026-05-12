@@ -36,7 +36,7 @@ Usefulness legend: ★★★ = required across most kawaz repos / wired into `pu
 
 | Task | Usefulness | Purpose | Args / Notes |
 |---|---|---|---|
-| `vcs:commit` | ★★★ | Commit (jj/git auto-dispatch) | param: `message` (required) |
+| `vcs:commit` | ★★★ | Commit the working-copy changes (jj/git auto-dispatch) | param: `message` (required) |
 | `vcs:push` | ★★★ | Push to remote (jj/git auto-dispatch) | Extend with `(vcs.push) { deps { ... } }` to wire pre-push gates |
 | `vcs:fetch` | ★★ | Fetch from remote (jj/git auto-dispatch) | — |
 | `vcs:ensure-clean` | ★★★ | Verify working copy is clean (jj/git auto-dispatch) | Wire into `push` gates |
