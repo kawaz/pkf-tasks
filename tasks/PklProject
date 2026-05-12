@@ -3,7 +3,7 @@ amends "pkl:Project"
 package {
   name = "pkf-tasks"
   baseUri = "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/\(name)"
-  version = "0.0.13"
+  version = "0.0.14"
   packageZipUrl =
     "https://github.com/kawaz/pkf-tasks/releases/download/\(name)@\(version)/\(name)@\(version).zip"
   description = "Common Pkl task modules for pkfire (kawaz/* shared templates: vcs, docs, ...)"
@@ -19,6 +19,6 @@ package {
 
 dependencies {
   ["pkfire"] {
-    uri = "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.4.0"
+    uri = "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0"
   }
 }

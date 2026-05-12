@@ -221,7 +221,7 @@ On the consumer side, the Pkl cache lives at `~/.pkl/cache/package-2/pkg.pkl-lan
 
 `.github/workflows/ci.yml`: on push to main or PRs, set up pkl + pkf via mizchi/pkfire's composite action (`mizchi/pkfire@<commit SHA>`), run `pkl eval` smoke tests on each module, confirm `pkl project package` succeeds, and self-dogfood the translation-pair check on this repo's own READMEs.
 
-`uses:` references the action by **commit SHA**, not by tag (`mizchi/pkfire@pkfire@0.4.0`). The pkfire release tags contain `@` (`pkfire@0.4.0`), which breaks the GitHub Actions workflow parser at the workflow-file level — the run fails so early that no logs are even produced. SHA pinning sidesteps this entirely and is also a recommended supply-chain hardening practice. See [DR-0004](./decisions/DR-0004-pkfire-action-sha-pin.md).
+`uses:` references the action by **commit SHA**, not by tag (`mizchi/pkfire@pkfire@<version>`). The pkfire release tags contain `@` (e.g. `pkfire@0.6.0`), which breaks the GitHub Actions workflow parser at the workflow-file level — the run fails so early that no logs are even produced. SHA pinning sidesteps this entirely and is also a recommended supply-chain hardening practice. See [DR-0004](./decisions/DR-0004-pkfire-action-sha-pin.md).
 
 `.github/workflows/release.yml`: triggered by `pkf-tasks@*` tag pushes. It runs `pkl project package` and uploads the four expected assets to the matching GitHub Release. The workflow fails fast if the tag's version doesn't match the version declared in `PklProject`, preventing accidental mismatches.
 

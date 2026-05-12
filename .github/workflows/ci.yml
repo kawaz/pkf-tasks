@@ -21,10 +21,10 @@ jobs:
             pkl-cache-
       # SHA pin: mizchi/pkfire の tag 名は `pkfire@<version>` 形式で `@` を
       # 含むため、`uses: <repo>@<ref>` 構文と相性が悪く GHA parser が
-      # file-level error を起こす (DR-0004 参照)。pkfire@0.4.0 に対応する
+      # file-level error を起こす (DR-0004 参照)。pkfire@0.6.0 に対応する
       # commit SHA を直接指して回避。
-      - name: Setup pkfire (pkfire@0.4.0)
-        uses: mizchi/pkfire@6e8f4735acd74407455ee6be3debfe9ca8c8e4e9
+      - name: Setup pkfire (pkfire@0.6.0)
+        uses: mizchi/pkfire@45a60a4e81638506f7c12d88fdd1251a56e64b22
       - name: Verify pkl / pkf versions
         run: |
           pkl --version

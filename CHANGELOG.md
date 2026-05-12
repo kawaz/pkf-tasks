@@ -1,6 +1,16 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.13`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.14`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.14 — 2026-05-12
+
+### Changed
+
+- **pkfire dependency: `0.4.0` → `0.6.0`**。upstream pkfire の Pkl schema 自体は無変更だが、利用側 (kawaz/* リポ) の Taskfile.pkl も同じく `amends "package://...pkfire@0.6.0#/Taskfile.pkl"` に揃える必要 (Pkl の module version conflict 検出のため、root と zip 内で pkfire version が一致する必要)。
+
+### Upstream notes
+
+pkfire 0.6.0 で追加された CLI 機能 (`pkf affected --since=<ref>` / `pkf hooks install` / `pkf migrate --to=<ver>` / `pkf <plugin>` / `pkf completion` / glob target / `pkf cache *` etc.) は **Pkl schema 不変** のため pkf-tasks 側の Task 定義に影響なし。利用者は pkf binary を更新するだけで新機能を享受できる。
 
 ## 0.0.13 — 2026-05-12
 

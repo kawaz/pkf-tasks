@@ -221,7 +221,7 @@ tag 命名は `pkf-tasks@<version>` (mizchi/pkfire の流儀踏襲、詳細は [
 
 `.github/workflows/ci.yml`: main へ push / PR 時に pkfire の composite action (`mizchi/pkfire@<commit SHA>`) で pkl + pkf を準備、各 module を `pkl eval` で smoke-test、`pkl project package` の生成可否を確認、自リポの翻訳ペアの整合性 (self dogfooding) を確認。
 
-`uses:` を tag (`mizchi/pkfire@pkfire@0.4.0`) ではなく **commit SHA で pin** する。pkfire の release tag に `@` が含まれる (`pkfire@0.4.0`) ことが GitHub Actions の workflow parser を壊す (workflow file レベルで fail し log すら取れない) ため。SHA pin は副次効果として supply chain security 観点でも推奨される。詳細は [DR-0004](./decisions/DR-0004-pkfire-action-sha-pin.md)。
+`uses:` を tag (`mizchi/pkfire@pkfire@<version>`) ではなく **commit SHA で pin** する。pkfire の release tag に `@` が含まれる (e.g. `pkfire@0.6.0`) ことが GitHub Actions の workflow parser を壊す (workflow file レベルで fail し log すら取れない) ため。SHA pin は副次効果として supply chain security 観点でも推奨される。詳細は [DR-0004](./decisions/DR-0004-pkfire-action-sha-pin.md)。
 
 `.github/workflows/release.yml`: `pkf-tasks@*` tag が push されたら自動で `pkl project package` を実行し、生成された 4 asset を GitHub Release にアップロード。tag と PklProject の version が一致しない場合は fail させて誤 publish を防ぐ。
 

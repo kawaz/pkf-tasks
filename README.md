@@ -15,7 +15,7 @@ Shared task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire). Group
 `Taskfile.pkl`:
 
 ```pkl
-amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.4.0#/Taskfile.pkl"
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
 import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.13#/all.pkl" as kawaz
 
 tasks {
