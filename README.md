@@ -28,6 +28,65 @@ Shared task modules for [mizchi/pkfire](https://github.com/mizchi/pkfire). Group
     - `migrate:update-pkfire` — wraps `pkf migrate --to=<latest>` (pkfire 0.6.0+ built-in, eval-verified, auto-reverts on failure)
   - Wire the `check-*` tasks into `push`'s `deps` to surface upgrades at the right moment.
 
+## Tasks at a glance
+
+Usefulness legend: ★★★ = required across most kawaz repos / wired into `push` deps / ★★ = frequently used or essential for specific use cases / ★ = ad-hoc / special-purpose / internal-implementation
+
+### `vcs/` — jj/git auto-dispatched VCS primitives + knowledge storage
+
+| Task | Usefulness | Purpose | Args / Notes |
+|---|---|---|---|
+| `vcs:commit` | ★★★ | Auto-dispatch: jj `describe -m && new`, or git `commit -m` | param: `message` (required) |
+| `vcs:push` | ★★★ | Auto-dispatch: jj `bookmark set main -r @- && jj git push`, or git `push origin main` | Extend with `(vcs.push) { deps { ... } }` to wire pre-push gates |
+| `vcs:fetch` | ★★ | Thin wrapper over jj `git fetch` / git `fetch` | — |
+| `vcs:ensure-clean` | ★★★ | Verify working copy is clean (`@` empty / porcelain empty) | Wire into `push` gates |
+| `vcs:fetch-tags` | ★★ | Sync tags (jj: `jj git fetch \|\| true; jj git import \|\| true` / git: `git fetch --tags origin`) | Precedes `semver:check-against-latest-release` etc. |
+
+> Note: there are also Pkl helper functions (`vcs.diffSummary` / `vcs.readAtRef`) that return bash `$(...)` fragments for string-interpolation into other Tasks' cmds. They are internal-implementation / advanced use; see [DESIGN.md](./docs/DESIGN.md).
+
+### `docs/` — translation-pair integrity
+
+| Task | Usefulness | Purpose | Args / Notes |
+|---|---|---|---|
+| `docs:check-translations` | ★★★ | Verifies paired `*-ja.md` / `*.md` documents (existence, mutual link, commit-timestamp order) for README/DESIGN/MANUAL | Wire into `push` deps |
+
+### `lint/` — language-agnostic + meta lint
+
+| Task | Usefulness | Purpose | Args / Notes |
+|---|---|---|---|
+| `lint:pkl` | ★★★ | Apply `pkl format -w` to `**/*.pkl` + `PklProject*` + `PklProject.deps.json` | Wire into `push` deps |
+
+> An internal `lint:all-coverage` (orphan-module detection) also exists; rarely used by consumers.
+
+### `semver/` — SemVer gates + ad-hoc compare (`bump-semver` CLI required)
+
+| Task | Usefulness | Purpose | Args / Notes |
+|---|---|---|---|
+| `semver:check-bumped` | ★★★ | Fail if `triggerPaths` changed since `compareRef` without a corresponding `versionFiles` bump | Parameterise per-instance via object-amends; usage example below |
+| `semver:compare` | ★★ | Thin wrapper around `bump-semver compare` | `acceptsArgs = true`, e.g. `pkf run semver:compare -- gt VERSION 1.0.0` |
+
+Usage example for `semver:check-bumped`:
+
+```pkl
+(kawaz.semver.checkBumped) {
+  compareRefCmd = "echo main@origin"
+  triggerPaths = List("src/")
+  versionFiles = List("VERSION")  // consumer project's version file
+  taskName = "semver:check-version-bumped"
+}.check
+```
+
+### `migrate/` — upstream-drift pairs (`bump-semver` CLI required)
+
+| Task | Usefulness | Purpose | Args / Notes |
+|---|---|---|---|
+| **`migrate:check-*`** | — (glob, gate group) | Detect upstream drift | `pkf run 'migrate:check-*'` to run all; wire into `push` deps |
+| └ `migrate:check-pkf-tasks-current` | ★★★ | Fail if Taskfile.pkl's `pkf-tasks@<version>` import is behind latest release | Run after `vcs:fetch-tags` |
+| └ `migrate:check-pkfire-current` | ★★★ | Fail if Taskfile.pkl's `pkfire@<version>` amends is behind latest release | Run after `vcs:fetch-tags` |
+| **`migrate:update-*`** | — (glob, fix group) | Auto-fix upstream drift | `pkf run 'migrate:update-*'` to run all; remediation when checks fail |
+| └ `migrate:update-pkf-tasks` | ★★ | sed-rewrite the `import` URI to the latest tag | No auto-commit; review then `vcs:commit` |
+| └ `migrate:update-pkfire` | ★★ | Wraps `pkf migrate --to=<latest>` (pkfire 0.6.0+ built-in, eval-verified, auto-reverts on failure) | No auto-commit; review then `vcs:commit` |
+
 ## Usage
 
 `Taskfile.pkl`:
