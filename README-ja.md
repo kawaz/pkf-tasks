@@ -36,7 +36,7 @@
 
 | Task | 便利度 | 用途 | 引数 / 備考 |
 |---|---|---|---|
-| `vcs:commit` | ★★★ | ワーキングコピーの変更をコミット (jj/git 自動切替) | param: `message` (必須) |
+| `vcs:commit` | ★★★ | ワーキングコピーに変更があれば commit 実行 (jj/git 自動切替) | param: `message` (必須) |
 | `vcs:push` | ★★★ | リモートへ push (jj/git 自動切替) | `(vcs.push) { deps { ... } }` で extend して push 前 gate を組む |
 | `vcs:fetch` | ★★ | リモートから fetch (jj/git 自動切替) | — |
 | `vcs:ensure-clean` | ★★★ | working copy が clean か検査 (jj/git 自動切替) | `push` の gate に組み込む |
