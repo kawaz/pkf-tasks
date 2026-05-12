@@ -1,0 +1,44 @@
+/// 利用側 Taskfile.pkl の `pkf-tasks@<version>` import を最新 release tag に
+/// 書き換える action task。`migrate:check-pkf-tasks-current` が fail したときの
+/// 復旧手段として利用者が手動で `pkf run migrate:update-pkf-tasks` 実行する想定。
+///
+/// 自動 commit はしない (利用者が diff を確認してから手動で commit する流儀。
+/// `semver:check-version-bumped` と `bump-version` を分けるのと同じ思想)。
+///
+/// パラメータは `migrate:check-pkf-tasks-current` と同じ (`taskfilePath` /
+/// `repoUrl` / `tagPrefix`)。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.migrate.updateSelf
+
+import "@pkfire/Taskfile.pkl"
+
+taskfilePath: String = "Taskfile.pkl"
+repoUrl: String = "https://github.com/kawaz/pkf-tasks"
+tagPrefix: String = "pkf-tasks@"
+
+update: Taskfile.Task = new Taskfile.Task {
+  name = "migrate:update-pkf-tasks"
+  description = "update pkf-tasks import version in \(taskfilePath) to latest released tag"
+  cache = false
+  cmd = """
+    set -euo pipefail
+    latest=$(git ls-remote --tags \(repoUrl) 2>/dev/null \\
+      | awk '{print $2}' \\
+      | grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+$' \\
+      | sort -V \\
+      | tail -1)
+    if [ -z "$latest" ]; then
+      echo "ERROR: failed to fetch latest tag from \(repoUrl)" >&2
+      exit 1
+    fi
+    new_version=${latest#\(tagPrefix)}
+    if grep -q "\(tagPrefix)${new_version}" \(taskfilePath); then
+      echo "already at \(tagPrefix)${new_version}"
+      exit 0
+    fi
+    # in-place 書き換え (BSD/GNU sed 両対応で .bak 経由)
+    sed -i.bak -E "s|\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+|\(tagPrefix)${new_version}|g" \(taskfilePath)
+    rm -f \(taskfilePath).bak
+    echo "updated to \(tagPrefix)${new_version} — review the diff and commit"
+    """
+}

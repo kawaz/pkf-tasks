@@ -1,16 +1,22 @@
-/// `tasks/` 配下の全 `.pkl` module が `all.pkl` 群 (root or sub) で
-/// re-export されていることを検証する gate task。漏れがあれば fail し、
-/// 利用者に `all.pkl` への追記を促す。
+/// `tasks/` 配下の `.pkl` module が **孤児になっていない** (= 他のどこかから
+/// 参照されている) ことを検証する gate task。漏れがあれば fail し、利用者に
+/// `all.pkl` 群への追記または他 module からの参照追加を促す。
 ///
-/// 除外対象:
+/// v0.0.11 で「all.pkl 群限定の参照」から「全 .pkl 範囲での参照」に検出ロジック
+/// を緩和。これにより `vcs/jj.pkl` `vcs/git.pkl` のような iface 実装ファイル
+/// (`vcs/auto.pkl` が `import` するが all.pkl には直接書かない) の false-positive
+/// 誤検出を解消した。
+///
+/// 除外対象 (検出スコープから外す):
 ///   - `PklProject*` (package metadata、module ではない)
 ///   - `Taskfile.pkl` (dogfood 用 entry、module ではない)
-///   - `iface.pkl` (abstract module、利用者は直接 import しない)
-///   - `all.pkl` 自身 (集約エンドポイント、循環防止)
+///   - `iface.pkl` (abstract module、実装側 `extends "iface.pkl"` で参照されるので
+///     実は孤児検出には引っかからないが、概念的に検出対象外と明示)
+///   - `all.pkl` 自身 (集約エンドポイント、利用者から参照される想定)
 ///
 /// 設計判断:
-///   現状は **検出のみ** で fail。auto-fix (all.pkl 自動再生成) は将来
-///   `fix:all-coverage` として別 task で提供する想定。検出と修正を分けるのは
+///   現状は **検出のみ** で fail。auto-fix (all.pkl 自動再生成 / 参照追加) は
+///   将来 `fix:all-coverage` として別 task で提供する想定。検出と修正を分けるのは
 ///   `semver:check-version-bumped` (gate) と `bump-version` (action) と同じ流儀。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.lint.allCoverage
@@ -19,7 +25,7 @@ import "@pkfire/Taskfile.pkl"
 
 allCoverage: Taskfile.Task = new Taskfile.Task {
   name = "lint:all-coverage"
-  description = "ensure all .pkl modules under tasks/ are exported via all.pkl"
+  description = "ensure no orphan .pkl modules under tasks/ (every module is referenced from elsewhere)"
   cache = false
   workdir = "tasks"
   cmd =
@@ -28,7 +34,9 @@ allCoverage: Taskfile.Task = new Taskfile.Task {
     missing=()
     while IFS= read -r f; do
       base=$(basename "$f")
-      if ! grep -rql -- "$base" $(find . -name "all.pkl" -print) 2>/dev/null; then
+      # f 自身を除いた全 .pkl のいずれかで base が言及されているか
+      ref=$(find . -name "*.pkl" -not -path "$f" -exec grep -l -- "$base" {} \\; 2>/dev/null | head -1)
+      if [ -z "$ref" ]; then
         missing+=("$f")
       fi
     done < <(find . -name "*.pkl" \\
@@ -37,12 +45,12 @@ allCoverage: Taskfile.Task = new Taskfile.Task {
       -not -name "iface.pkl" \\
       -not -name "all.pkl")
     if [ ${#missing[@]} -gt 0 ]; then
-      echo 'ERROR: all.pkl 群に未 export の module が存在:' >&2
+      echo 'ERROR: orphan module(s) detected (no references from other .pkl files):' >&2
       printf '  - %s\\n' "${missing[@]}" >&2
       echo '' >&2
-      echo 'tasks/all.pkl (root) または tasks/<group>/all.pkl (sub) に re-export を追加してください' >&2
+      echo 'either re-export via all.pkl group, or import from another module under tasks/' >&2
       exit 1
     fi
-    echo "ok: all modules are re-exported via all.pkl"
+    echo "ok: no orphan modules"
     """
 }

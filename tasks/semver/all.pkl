@@ -9,6 +9,7 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.semver.all
 
+import "@pkfire/Taskfile.pkl"
 import "check-bumped.pkl" as checkBumpedMod
 import "compare.pkl" as compareMod
 
@@ -20,3 +21,10 @@ checkBumped = checkBumpedMod
 /// `compare` は **task 直接** 公開 (acceptsArgs = true の ad-hoc CLI 用、
 /// 利用側は `kawaz.semver.compare` でそのまま登録可能)。
 compare = compareMod.compare
+
+/// 一括登録用 (`tasks { ...kawaz.semver.allTasks }`)。
+/// 注: `checkBumped` は module 参照のため含めない (利用側で parameterize して
+/// instance task を作る前提)。
+allTasks: Listing<Taskfile.Task> = new {
+  compare
+}

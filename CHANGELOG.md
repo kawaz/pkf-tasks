@@ -1,6 +1,23 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.10`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.11`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.11 — 2026-05-12
+
+### Added
+
+- **`tasks/migrate/check-current.pkl`** — `migrate:check-pkf-tasks-current` gate task。利用側 Taskfile.pkl の `pkf-tasks@<version>` import が最新 release より古いと fail させる。`push` task の deps に置いて「気づき発火点」として使う想定 (semver:check-* と同じ流儀)。`git ls-remote --tags` で remote の最新 tag を取得 (gh CLI 依存なし、git のみ)。
+- **`tasks/migrate/update-self.pkl`** — `migrate:update-pkf-tasks` action task。`migrate:check-pkf-tasks-current` fail 時の復旧手段として利用者が手動で実行、`sed -i.bak` で Taskfile.pkl の import version を書き換える。自動 commit はせず diff 確認は利用者責任 (semver:check-version-bumped と bump-version の関係と同じ)。
+- **`tasks/migrate/all.pkl`** — `migrate/` sub namespace 集約 (`kawaz.migrate.check` / `kawaz.migrate.update` / `kawaz.migrate.allTasks`)。
+- **`tasks/lint/all.pkl` / `tasks/semver/all.pkl` に `allTasks: Listing<Task>`** — 利用側で `tasks { ...kawaz.lint.allTasks }` / `tasks { ...kawaz.semver.allTasks }` の spread 一括登録を可能化。
+
+### Changed
+
+- **`lint:all-coverage` の検出ロジック**: 「all.pkl 群限定の参照」から **「tasks/ 内のどこかで参照されていれば OK」(孤児検出)** に緩和。これにより `vcs/jj.pkl` `vcs/git.pkl` のような iface 実装ファイル (`vcs/auto.pkl` が `import` で参照、all.pkl には書かない) の false-positive 誤検出を解消。`tasks/all.pkl` 直 export か `<group>/all.pkl` 経由 export かは問わず、孤児にならなければ OK。
+
+### Future
+
+- bump-semver の `vcs:latest-tag(<repo>)` 機能 (`kawaz/bump-semver` docs/issue 起票済) が実装されたら、`migrate:check-pkf-tasks-current` / `migrate:update-pkf-tasks` の `git ls-remote` 実装を `bump-semver get vcs:latest-tag(kawaz/pkf-tasks)` 呼び出しに置換し、VCS-aware ref schema の責務を bump-semver に集約する予定。
 
 ## 0.0.10 — 2026-05-11
 

@@ -1,0 +1,30 @@
+/// `tasks/migrate/` 配下の sub namespace 集約。
+///
+/// 利用側で:
+///   tasks {
+///     ...kawaz.migrate.allTasks
+///     // または個別:
+///     // kawaz.migrate.check
+///     // kawaz.migrate.update
+///   }
+///
+/// push の deps に `kawaz.migrate.check` を入れて「pkf-tasks 古いと push 時に fail」
+/// する設計が想定利用方法。`semver:check-*` と同じく「push 前 gate」として機能。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.migrate.all
+
+import "@pkfire/Taskfile.pkl"
+import "check-current.pkl" as checkMod
+import "update-self.pkl" as updateMod
+
+/// `migrate:check-pkf-tasks-current` task (gate)。
+check = checkMod.check
+
+/// `migrate:update-pkf-tasks` task (action)。
+update = updateMod.update
+
+/// 一括登録用 (`tasks { ...kawaz.migrate.allTasks }`)。
+allTasks: Listing<Taskfile.Task> = new {
+  check
+  update
+}

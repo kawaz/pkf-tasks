@@ -1,0 +1,54 @@
+/// 利用側 Taskfile.pkl の `pkf-tasks@<version>` import が pkf-tasks の最新 release
+/// より古いと fail する gate task。`push` の deps に置いて「気づき発火点」として
+/// 機能させる。
+///
+/// 設計:
+///   - 現状: `git ls-remote --tags https://github.com/kawaz/pkf-tasks` で remote
+///     の最新 tag を取得 (gh CLI 依存なし)
+///   - 将来: bump-semver の `vcs:latest-tag(<repo>)` (docs/issue 起票済) が
+///     実装されたら `bump-semver get vcs:latest-tag(kawaz/pkf-tasks)` に置換
+///     してロジックを集約する
+///
+/// パラメータ化:
+///   - `taskfilePath: String` — チェック対象 Taskfile.pkl のパス (default: 直下)
+///   - `repoUrl: String` — pkf-tasks の remote URL
+///   - `tagPrefix: String` — tag 命名規則 (`pkf-tasks@`)
+///
+/// fail で表示する次アクション: `pkf run migrate:update-pkf-tasks` で自動更新を促す。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.migrate.checkCurrent
+
+import "@pkfire/Taskfile.pkl"
+
+/// チェック対象 Taskfile.pkl のパス (利用側 repo の cwd 起点)。
+taskfilePath: String = "Taskfile.pkl"
+
+/// pkf-tasks の git remote URL (将来 fork 等で書き換える余地)。
+repoUrl: String = "https://github.com/kawaz/pkf-tasks"
+
+/// tag 命名 prefix (DR-0003 の `pkf-tasks@<version>` 形式)。
+tagPrefix: String = "pkf-tasks@"
+
+check: Taskfile.Task = new Taskfile.Task {
+  name = "migrate:check-pkf-tasks-current"
+  description = "fail if \(taskfilePath) pkf-tasks import is behind latest released tag"
+  cache = false
+  cmd = """
+    set -euo pipefail
+    latest=$(git ls-remote --tags \(repoUrl) 2>/dev/null \\
+      | awk '{print $2}' \\
+      | grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+$' \\
+      | sort -V \\
+      | tail -1)
+    if [ -z "$latest" ]; then
+      echo "ERROR: failed to fetch latest tag from \(repoUrl)" >&2
+      exit 1
+    fi
+    if grep -q "$latest" \(taskfilePath); then
+      exit 0
+    fi
+    echo "ERROR: \(taskfilePath) pkf-tasks import is behind. Latest: $latest" >&2
+    echo "       run: pkf run migrate:update-pkf-tasks" >&2
+    exit 1
+    """
+}

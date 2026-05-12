@@ -10,11 +10,18 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.lint.all
 
+import "@pkfire/Taskfile.pkl"
 import "all-coverage.pkl" as allCoverageMod
 import "pkl.pkl" as pklMod
 
 /// `lint:pkl` task (Pkl format -w)。
 pkl = pklMod.format
 
-/// `lint:all-coverage` task (all.pkl 群の漏れ検出)。
+/// `lint:all-coverage` task (孤児 module 検出)。
 allCoverage = allCoverageMod.allCoverage
+
+/// 一括登録用 (`tasks { ...kawaz.lint.allTasks }`)。
+allTasks: Listing<Taskfile.Task> = new {
+  pkl
+  allCoverage
+}

@@ -22,6 +22,7 @@ module com.github.kawaz.pkfTasks.all
 
 import "docs/translations.pkl" as docsMod
 import "lint/all.pkl" as lintMod
+import "migrate/all.pkl" as migrateMod
 import "semver/all.pkl" as semverMod
 import "vcs/auto.pkl" as vcsMod
 
@@ -41,3 +42,8 @@ lint = lintMod
 /// - `semver.checkBumped` は module 参照 (parameterize 用、`(...).check`)
 /// - `semver.compare` は task 直接 (ad-hoc CLI 用)
 semver = semverMod
+
+/// migrate: pkf-tasks 自身の version 追従 gate + action。
+/// - `migrate.check` は push の deps に置いて古い import を検知 (gate)
+/// - `migrate.update` は利用者が手動で実行して Taskfile.pkl を最新に書き換え
+migrate = migrateMod
