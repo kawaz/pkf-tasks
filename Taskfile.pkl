@@ -14,7 +14,7 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
 
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.0.0#/all.pkl" as kawaz
 
 // =============================================================================
 // Self-dogfood lint / check (v2.0.0 で library export から外して inline 化)
@@ -41,8 +41,7 @@ local lintPkl: Task = new {
 
 local checkOrphanModules: Task = new {
   name = "check:orphan-modules"
-  description =
-    "ensure every .pkl module under tasks/ is referenced from elsewhere (no orphans)"
+  description = "ensure every .pkl module under tasks/ is referenced from elsewhere (no orphans)"
   cache = false
   workdir = "tasks"
   cmd =
