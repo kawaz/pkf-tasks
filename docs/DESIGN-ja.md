@@ -10,20 +10,67 @@
 tasks/
 ├── PklProject               # Pkl package metadata (packageUri / dependencies / version)
 ├── PklProject.deps.json     # 解決済 dep lockfile (SHA256 pin)
+├── all.pkl                  # root 集約 — `import .../all.pkl as kawaz` の単一窓口
 ├── vcs/
-│   ├── iface.pkl            # abstract module (commit / push / fetch / ensureClean)
+│   ├── iface.pkl            # abstract module (commit / push / fetch / ensureClean / fetchTags)
 │   ├── jj.pkl               # iface を extends した jj 実装
 │   ├── git.pkl              # iface を extends した git 実装
-│   └── auto.pkl             # entry。Task export + Pkl function helper (diffSummary / readAtRef)
+│   └── auto.pkl             # entry — Task export + Pkl function helper (diffSummary / readAtRef)
 ├── docs/
 │   └── translations.pkl     # README{,-ja}.md 等のペア検証 (1 Task で bash for)
 ├── lint/
-│   └── pkl.pkl              # 言語横断 `pkl format -w` task
-└── semver/
-    └── check-bumped.pkl     # parameterized SemVer bump gate (bump-semver 必須)
+│   ├── pkl.pkl              # 言語横断 `pkl format -w` task
+│   ├── all-coverage.pkl     # `lint:all-coverage` — tasks/ 配下の孤児 .pkl module 検出 gate
+│   └── all.pkl              # lint/ sub 集約
+├── semver/
+│   ├── check-bumped.pkl     # parameterized SemVer bump gate (bump-semver 必須)
+│   ├── compare.pkl          # `semver:compare` — bump-semver compare の薄いラッパ (acceptsArgs)
+│   └── all.pkl              # semver/ sub 集約
+└── migrate/
+    ├── check-current.pkl    # `migrate:check-pkf-tasks-current` — pkf-tasks import 鮮度 gate
+    ├── update-self.pkl      # `migrate:update-pkf-tasks` — Taskfile.pkl の import を最新書換
+    └── all.pkl              # migrate/ sub 集約
 ```
 
 モジュールの内部 FQN は `com.github.kawaz.pkfTasks.*` を使う。利用側は `import ... as <alias>` で alias import するため FQN の変更は影響しないが、reverse-domain notation としては `kawaz.com` を所有していないので `com.github.kawaz` に揃えるのが正確 (v0.0.6 で修正、利用者非破壊)。
+
+## 集約 import — `all.pkl` の二層構造
+
+利用側で `import "package://...pkf-tasks@<version>#/all.pkl" as kawaz` 1 行で全 group にアクセスできるようにする root 集約 (v0.0.10 で導入)。kawaz/* の各リポは pkf-tasks の全機能を使う前提なので、個別 import (`vcs/auto.pkl as vcs`, `docs/translations.pkl as docs`, ...) より集約 import の方が DRY。
+
+```pkl
+import "package://...pkf-tasks@0.0.12#/all.pkl" as kawaz
+
+tasks {
+  ...kawaz.vcs.allTasks                                       // commit / push / fetch / ensureClean / fetchTags
+  kawaz.docs.checkTranslations
+  ...kawaz.lint.allTasks                                      // pkl format + all-coverage
+  kawaz.semver.compare                                        // ad-hoc CLI 用 (acceptsArgs)
+  (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check  // parameterize は module 参照
+  ...kawaz.migrate.allTasks                                   // check + update
+}
+```
+
+二層構造: **root `tasks/all.pkl`** が各 group の `tasks/<group>/all.pkl` を `import` して名前空間として再 export し、各 sub `all.pkl` がその group の module 群を一括公開する。
+
+### sub `all.pkl` での「task 直接公開」vs「module 参照公開」
+
+各 sub `all.pkl` は 2 通りの公開スタイルを使い分ける:
+
+- **task 直接公開** — `kawaz.lint.pkl` (Task) のように `tasks { kawaz.lint.pkl }` でそのまま登録できる短縮形。ad-hoc CLI 用の `kawaz.semver.compare` (acceptsArgs Task) も同じスタイル。
+- **module 参照公開** — `kawaz.semver.checkBumped` は **module** として公開し、利用側で `(kawaz.semver.checkBumped) { compareRefCmd = ...; versionFiles = ... }.check` のように parameterize して instance task を作る前提。
+
+加えて各 sub `all.pkl` は `allTasks: Listing<Task>` を持ち、`tasks { ...kawaz.lint.allTasks }` のような spread 一括登録に対応する (v0.0.11 で追加)。parameterize 前提の module 参照は `allTasks` から除外し、利用者が明示インスタンス化する責務にする。
+
+### `lint:all-coverage` — 孤児 module 検出による集約整合性の自動化
+
+`all.pkl` の手動メンテはどうしても漏れが出る (新 module を追加したのに `all.pkl` に書き忘れる等)。これを CI / push 前 test で自動検出するための gate task が `lint:all-coverage` (v0.0.10 導入、v0.0.11 で検出ロジックを改善)。
+
+検出ロジックは「**`tasks/` 配下の `.pkl` module のいずれかが、他のどこからも参照されていなければ fail**」(=孤児検出)。v0.0.10 当初は「`all.pkl` 群限定の参照を見る」だったが、これだと `vcs/jj.pkl` `vcs/git.pkl` のような iface 実装ファイル (`vcs/auto.pkl` が `import` するが all.pkl には直接書かない) が false positive で検出されてしまった。v0.0.11 で検出範囲を「tasks/ 全 .pkl」に緩和して解消。
+
+除外対象: `PklProject*` (metadata)、`Taskfile.pkl` (dogfood entry)、`iface.pkl` (abstract、`extends` 経由参照は grep で拾えないので明示除外)、`all.pkl` 自身 (集約エンドポイント、外部からの参照は package URL 経由)。
+
+設計判断: 現状は検出のみ。auto-fix (`all.pkl` 再生成) は将来 `fix:all-coverage` として別 task で提供する想定。検出と修正を分けるのは `semver:check-version-bumped` (gate) と `bump-version` (action) と同じ流儀。
 
 ## VCS 抽象 — abstract module + extends + 実行時切替
 
@@ -37,7 +84,7 @@ tasks/
 
 ### Pkl function helper の二層 export
 
-`vcs/auto.pkl` は **Task export** (`commit` / `push` / `fetch` / `ensureClean`) に加えて、**Pkl function** を同じ module から export する:
+`vcs/auto.pkl` は **Task export** (`commit` / `push` / `fetch` / `ensureClean` / `fetchTags`) に加えて、**Pkl function** を同じ module から export する:
 
 - `diffSummary(ref: String, paths: List<String>): String` — 任意の ref と paths を比較し変更ファイル一覧を返す bash command substitution (`$(...)` の中身)
 - `readAtRef(ref: String, path: String): String` — 任意の ref におけるファイル内容を返す bash command substitution
@@ -45,6 +92,22 @@ tasks/
 これらは値そのものではなく **bash 断片** を返す。利用側は他 Task の cmd 内に `\(vcs.diffSummary("$ref", List("src/")))` のように Pkl 文字列補間で埋め込み、実行時に bash の if-else で jj/git dispatch される (auto-detect)。
 
 helpers を `vcs/helpers.pkl` のような別 module に切り出さなかった理由: jj/git dispatch ロジックが auto.pkl と二重になる。auto.pkl を「auto-detect なら何でもここに集約」のシングルゲートウェイにする方が利用側の `import ... as vcs` 1 つで Task と helper の両方にアクセスできる。詳細は [DR-0005](./decisions/DR-0005-vcs-helper-functions-and-semver-group.md)。
+
+### `vcs/*` を VCS knowledge 集積場として位置付ける
+
+higher-level なレシピ (`semver/check-bumped` 等) を書くたびに「jj だとこうやる / git だとこう」の bash 分岐をレシピ内に埋め込むと、同じ knowledge が複数レシピで重複して肥大化する。v0.0.9 で **`vcs/{iface,jj,git,auto}.pkl` を VCS dispatch + jj/git knowledge 集積場として明示的に位置付け** ([DR-0006](./decisions/DR-0006-vcs-as-knowledge-storage.md))、jj/git で挙動差異がある操作はここに集約する方針を確立。
+
+吸収形態は 2 通り:
+
+- **Task として追加** — 利用側 task の deps に挟みたい (=順序 + cache key で扱いたい) 場合
+- **Pkl function として追加** — 利用側 task の cmd 内で `$(...)` 展開して使いたい (=文字列断片として組み立てる) 場合 (DR-0005)
+
+具体例として v0.0.9 で追加した **`vcs:fetch-tags`** (`abstract fetchTags: Task` を iface に追加):
+
+- jj: `jj git fetch || true; jj git import || true` — `jj git fetch` は `remote.<name>.tagOpt` を読むため設定なしだと tag が来ない。`jj git import` を併用して bare git 側で fetched された tag を jj 側にも反映する。両者を best-effort (`|| true`) にして、ネットワーク不通や設定不備でも後続処理が走れるようにする
+- git: `git fetch --tags origin`
+
+このように iface に `abstract` を追加すると `extends "iface.pkl"` する全実装 (jj/git/auto) で実装漏れが評価時エラーになる (DR-0001 の型システム恩恵)。外部 consumer には影響なし。
 
 ## 翻訳ペア検証 — 1 Task で bash for ループ
 
@@ -78,7 +141,9 @@ local lint: Task = new {
 
 `pkl format` の動作差を抑えるため pkfire と同じ `minPklVersion = "0.31.0"` を前提にする。
 
-## SemVer ゲート — `semver/check-bumped.pkl`
+## SemVer group — `semver/check-bumped.pkl` + `semver/compare.pkl`
+
+### `semver:check-bumped` — bump 漏れ gate
 
 「比較対象 ref 以降に `triggerPaths` が変わったのに VERSION ファイルが bump されていなければ fail」を検査するゲート Task。push 前 (`compareRef = main@origin`) や CI release 前 (`compareRef = 直近の v* tag`) のガードとして使う。
 
@@ -88,8 +153,20 @@ local lint: Task = new {
 - `triggerPaths: List<String>` — 変更検知対象 (default `src/`)
 - `versionFiles: List<String>` — bump 対象 VERSION ファイル一覧 (複数可)
 - `taskName: String` — task 名 (利用側で `semver:check-version-bumped` / `semver:check-against-latest-release` のように別名を付ける)
+- `needsFetchTags: Boolean` — true なら deps に `vcs.fetchTags` を挟む (v0.0.9 追加)。tag 系の compareRef (`git tag -l 'v*' ...`, `vcs:latest-tag()`) を使う場合に jj/git の tag 同期を保証するため。default false (push 前 gate 等、`main@origin` 比較では不要)
 
 `(semverCheck) { ... }.check` の object-amends で利用側が 2 task に展開する流儀。実装は `vcs.diffSummary` で trigger paths の差分を取り、空でなければ `bump-semver compare gt VERSION vcs:"$compare_ref":VERSION` で SemVer 比較する。
+
+### `semver:compare` — ad-hoc CLI ラッパ (v0.0.8)
+
+`bump-semver compare` の薄いラッパで、pkfire の `acceptsArgs = true` 経由で任意の `<OP> <INPUT> <INPUT>` を渡す:
+
+```
+pkf run semver:compare -- gt VERSION 1.0.0
+pkf run semver:compare -- lt Cargo.toml vcs:latest-tag():Cargo.toml
+```
+
+pkfire の `Task.deps: Listing<Task>` は引数渡し未対応なので、本 task は **ad-hoc CLI 利用専用**。`semver:check-bumped` のような複合 gate は本 task を deps として再利用できず、内部で `bump-semver compare` を直接呼ぶ別 task として維持する。
 
 ### bump-semver 必須 — SemVer 比較 fallback は意図的に未実装
 
@@ -97,9 +174,30 @@ local lint: Task = new {
 
 - SemVer は prerelease (`-rc.1`) / build metadata (`+sha.abc`) の比較ルールが複雑で、`sort -V` は `0.14.0-rc.1` と `0.14.0` の順序が直感に反する
 - `bump-semver` は semver.org 準拠で実装されており、責務をそちらに集約する方が DRY
-- pkf-tasks の責務は VCS dispatch まで、SemVer 比較は bump-semver に任せる
+- pkf-tasks の責務は VCS dispatch + task 合成、SemVer 比較は bump-semver に任せる
 
 利用側は `brew install kawaz/tap/bump-semver` 等で導入。CI 環境でも同様。`semver/*` は `vcs/*` に依存する一方向 layering で、逆依存はない。詳細は [DR-0005](./decisions/DR-0005-vcs-helper-functions-and-semver-group.md)。
+
+## migrate group — pkf-tasks 自身の version 追従 (v0.0.11+)
+
+利用側 Taskfile.pkl の `pkf-tasks@<version>` import が古いまま放置されないよう、push 前の gate と手動更新の action を提供する。設計思想は **push の deps = 気づき発火点** で、`semver:check-*` と同じ流儀。
+
+### gate と action の分離
+
+- **`migrate:check-pkf-tasks-current`** (`migrate/check-current.pkl`) — gate task。利用側 Taskfile.pkl の `pkf-tasks@<version>` import が最新 release より古いと fail。`push` task の deps に置く想定
+- **`migrate:update-pkf-tasks`** (`migrate/update-self.pkl`) — action task。gate が fail したときの復旧手段として利用者が手動で `pkf run migrate:update-pkf-tasks` 実行。`sed -i.bak` で in-place 書き換えするが **自動 commit はしない** (diff 確認は利用者責任)
+
+gate と action を分けるのは `semver:check-version-bumped` (gate) と `bump-version` (action) と同じ思想。「pkf-tasks 古いと push で fail → 利用者が action 実行 → diff 確認 → commit」のループを成立させる。
+
+### bump-semver 経由の最新 tag 取得 (v0.0.12 で統合)
+
+v0.0.11 では繋ぎ実装として `git ls-remote --tags` + `awk | grep | sort -V | tail -1` の bash pipeline で remote の最新 tag を取得していた。v0.0.12 で bump-semver v0.15.0 が `vcs:latest-tag(<repo>)` をサポートしたので、**本来の責務分担** (bump-semver = VCS-aware SemVer 比較 + ref schema、pkf-tasks = task 合成) に整合させた:
+
+- 最新 tag 取得: `bump-semver get vcs:latest-tag(kawaz/pkf-tasks)`
+- 比較: `bump-semver compare ge <current> <latest>` — 文字列マッチではなく **SemVer 比較** (current >= latest なら gate pass。pre-release / build metadata も semver.org 準拠で比較)
+- 利用側が未 release 版を pin している場合や RC release 中も適切に通る
+
+これにより bash の複雑な pipeline が不要になり、knowledge の集約先 (VCS-aware SemVer ref schema = bump-semver、task 合成 = pkf-tasks) がクリーンに分離された。DR-0006 (vcs as knowledge storage の方針) と整合する責務移動。
 
 ## 配布 — Pkl package + GitHub Release
 
@@ -109,7 +207,7 @@ local lint: Task = new {
 package {
   name = "pkf-tasks"
   baseUri = "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/\(name)"
-  version = "0.0.7"
+  version = "0.0.12"
   packageZipUrl = "https://github.com/kawaz/pkf-tasks/releases/download/\(name)@\(version)/\(name)@\(version).zip"
   ...
 }
