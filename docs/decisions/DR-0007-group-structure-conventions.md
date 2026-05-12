@@ -37,6 +37,20 @@ v0.0.7 までは `vcs/` と `docs/` の 2 group だけだったが、v0.0.7 〜 
 - `:` 区切りで group / action を明示 (`pkf list` でソートしたとき group 単位でまとまる)
 - 利用側で複数 instance 化する場合は `<group>:<action>-<modifier>` で枝分かれ (例: `semver:check-version-bumped` / `semver:check-against-latest-release`)
 
+#### 複数 target を扱う group の **対称命名規約** (v0.0.16+)
+
+ある group が **複数の対象 (target)** に対する task を持つ場合、task 名 / sub `all.pkl` の field 名どちらにも **対象を明示する suffix** を付ける。暗黙の default 命名 (1 target だけ suffix 省略) は **規約破綻** とみなす。
+
+実例 (v0.0.16 で migrate group が経験した規約整備):
+
+- v0.0.15 までは `kawaz.migrate.check` (= `migrate:check-pkf-tasks-current`、対象 = pkf-tasks 暗黙)
+- v0.0.15 で `kawaz.migrate.checkPkfire` を追加 → `check` の対象が不明瞭、利用側 `deps { kawaz.migrate.check; kawaz.migrate.checkPkfire }` で前者が何を check しているか自明でない
+- v0.0.16 で `kawaz.migrate.checkPkfTasks` に rename して対称化
+
+判定基準: **「複数の target が並んだ時に対象が自明か」**。並ばない (1 target だけ) なら短縮命名でも OK だが、将来追加で破綻する可能性を見越して **最初から suffix 明示** が保守的。
+
+task name (`migrate:check-pkf-tasks-current` 等、`pkf list` で見える方) は **常に対象明示** が原則 (利用者の `pkf run <name>` 経路でも誤読を防ぐ)。Pkl module の field 名はそれと整合的に揃える。
+
 #### group ディレクトリ名: 小文字、単数形か明確な複数形
 
 - 例: `vcs/` `docs/` `lint/` `semver/` `migrate/`
