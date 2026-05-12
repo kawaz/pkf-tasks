@@ -1,21 +1,29 @@
 /// `tasks/migrate/` 配下の sub namespace 集約。
 ///
+/// 提供 task (gate + action のペアで対象別に分ける):
+///   - `check` (= `migrate:check-pkf-tasks-current`): pkf-tasks の追従検知
+///   - `update` (= `migrate:update-pkf-tasks`): pkf-tasks の自動更新 (sed in-place)
+///   - `checkPkfire` (= `migrate:check-pkfire-current`): pkfire の追従検知 (v0.0.15+)
+///   - `updatePkfire` (= `migrate:update-pkfire`): pkfire の自動更新 (`pkf migrate` ラップ)
+///
 /// 利用側で:
 ///   tasks {
-///     ...kawaz.migrate.allTasks
+///     ...kawaz.migrate.allTasks      // 4 task 全部登録
 ///     // または個別:
-///     // kawaz.migrate.check
-///     // kawaz.migrate.update
+///     // kawaz.migrate.check         // pkf-tasks gate
+///     // kawaz.migrate.checkPkfire   // pkfire gate
 ///   }
 ///
-/// push の deps に `kawaz.migrate.check` を入れて「pkf-tasks 古いと push 時に fail」
-/// する設計が想定利用方法。`semver:check-*` と同じく「push 前 gate」として機能。
+/// 設計思想: `push` の deps に `check` / `checkPkfire` を入れて「pkf-tasks / pkfire 古いと
+/// push 時に fail」する gate として機能 (`semver:check-*` と同じ流儀)。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.migrate.all
 
 import "@pkfire/Taskfile.pkl"
 
 import "check-current.pkl" as checkMod
+import "check-pkfire-current.pkl" as checkPkfireMod
+import "update-pkfire.pkl" as updatePkfireMod
 import "update-self.pkl" as updateMod
 
 /// `migrate:check-pkf-tasks-current` task (gate)。
@@ -24,8 +32,16 @@ check = checkMod.check
 /// `migrate:update-pkf-tasks` task (action)。
 update = updateMod.update
 
+/// `migrate:check-pkfire-current` task (gate, v0.0.15+)。
+checkPkfire = checkPkfireMod.check
+
+/// `migrate:update-pkfire` task (action, v0.0.15+)。pkfire 0.6.0+ の `pkf migrate` ラップ。
+updatePkfire = updatePkfireMod.update
+
 /// 一括登録用 (`tasks { ...kawaz.migrate.allTasks }`)。
 allTasks: Listing<Taskfile.Task> = new {
   check
   update
+  checkPkfire
+  updatePkfire
 }

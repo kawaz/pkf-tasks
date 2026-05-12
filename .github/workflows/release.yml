@@ -34,16 +34,35 @@ jobs:
             echo "::error::PklProject declares version=$declared but tag is pkf-tasks@$EXPECTED" >&2
             exit 1
           fi
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          # CHANGELOG.md の `## <VERSION> ` セクションを抽出。次の `## <数字>` の
+          # 直前まで。section が見つからない場合は terse fallback (release は
+          # 通すが notes は最小限の本文)。
+          notes=$(awk -v ver="$VERSION" '
+            $0 ~ "^## " ver " " { flag=1; print; next }
+            flag && $0 ~ "^## [0-9]" { flag=0 }
+            flag { print }
+          ' CHANGELOG.md)
+          if [ -z "$notes" ]; then
+            notes="Release pkf-tasks@${VERSION}. See CHANGELOG.md for details."
+          fi
+          printf '%s\n' "$notes" > /tmp/release-notes.md
+          echo "file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
       - name: Package
         working-directory: tasks
         run: |
           pkl project resolve
           pkl project package
-      - name: Upload release assets
+      - name: Upload release assets and notes
         env:
           GH_TOKEN: ${{ github.token }}
           REF_NAME: ${{ github.ref_name }}
           VERSION: ${{ steps.ver.outputs.version }}
+          NOTES_FILE: ${{ steps.notes.outputs.file }}
         working-directory: tasks
         run: |
           gh release upload "$REF_NAME" \
@@ -52,3 +71,6 @@ jobs:
             ".out/pkf-tasks@${VERSION}/pkf-tasks@${VERSION}.zip" \
             ".out/pkf-tasks@${VERSION}/pkf-tasks@${VERSION}.zip.sha256" \
             --clobber
+          # CHANGELOG.md から抽出した本文で release notes を上書き
+          # (`gh release create` 時に手動で notes を渡していた場合も統一)。
+          gh release edit "$REF_NAME" --notes-file "$NOTES_FILE"

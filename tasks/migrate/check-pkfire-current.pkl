@@ -1,0 +1,51 @@
+/// 利用側 Taskfile.pkl の `amends "package://...pkfire@<version>#/Taskfile.pkl"` が
+/// pkfire の最新 release より古いと fail する gate task。`push` の deps に置いて
+/// 「気づき発火点」として機能させる (`migrate:check-pkf-tasks-current` と同じ流儀)。
+///
+/// 責務分担:
+///   - `migrate:check-pkfire-current` (本 task) = **pkfire 本体** の追従検知
+///   - `migrate:check-pkf-tasks-current` = pkf-tasks の追従検知
+///   両者は対象 URI が違う (`amends` vs `import`) ので別 task として並存させる。
+///
+/// 実装: bump-semver の `vcs:latest-tag(mizchi/pkfire)` で最新 tag を取得し、
+/// SemVer 比較で `current >= latest` を判定 (`migrate:check-pkf-tasks-current` と同じ)。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.migrate.checkPkfireCurrent
+
+import "@pkfire/Taskfile.pkl"
+
+/// チェック対象 Taskfile.pkl のパス。
+taskfilePath: String = "Taskfile.pkl"
+
+/// pkfire repo spec (bump-semver の `vcs:latest-tag(<arg>)` に渡す形式)。
+remoteRepoSpec: String = "mizchi/pkfire"
+
+/// pkfire の tag 命名 prefix (release tag は `pkfire@<version>` 形式)。
+tagPrefix: String = "pkfire@"
+
+check: Taskfile.Task = new Taskfile.Task {
+  name = "migrate:check-pkfire-current"
+  description = "fail if \(taskfilePath) \(tagPrefix) amends URI is behind latest released version"
+  cache = false
+  cmd =
+    """
+    set -euo pipefail
+    if ! command -v bump-semver >/dev/null 2>&1; then
+      echo 'ERROR: bump-semver not installed (required for SemVer comparison)' >&2
+      echo '       Install: brew install kawaz/tap/bump-semver' >&2
+      exit 1
+    fi
+    latest=$(bump-semver get 'vcs:latest-tag(\(remoteRepoSpec))')
+    current=$(grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?' \(taskfilePath) | head -1 | sed 's|^\(tagPrefix)||')
+    if [ -z "$current" ]; then
+      echo "ERROR: failed to detect current \(tagPrefix) version in \(taskfilePath)" >&2
+      exit 1
+    fi
+    if bump-semver compare ge "$current" "$latest" --no-hint; then
+      exit 0
+    fi
+    echo "ERROR: \(taskfilePath) pkfire amends is behind. Current: $current, Latest: $latest" >&2
+    echo "       run: pkf run migrate:update-pkfire" >&2
+    exit 1
+    """
+}

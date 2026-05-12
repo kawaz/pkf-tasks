@@ -1,6 +1,19 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.14`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.15`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.15 — 2026-05-12
+
+### Added
+
+- **`migrate:check-pkfire-current` (gate) + `migrate:update-pkfire` (action)** — pkfire 本体 (`amends` URI) の追従用 task ペア。pkf-tasks の追従用 (`migrate:check-pkf-tasks-current` / `migrate:update-pkf-tasks`) が `import` URI を対象にするのと役割分担。
+  - check: `bump-semver get vcs:latest-tag(mizchi/pkfire)` で最新取得 + `bump-semver compare ge` で SemVer 比較 (`semver:check-bumped` と同じ流儀)
+  - update: pkfire 0.6.0+ 内蔵の `pkf migrate --to=<latest>` をラップ。Pkl の post-migrate eval 検証つきで自前 sed よりも strict (eval fail なら自動 revert)
+- **`migrate/all.pkl` を 4 task export に拡張** — `kawaz.migrate.{check,update,checkPkfire,updatePkfire}` + `allTasks` (4 task spread)。利用側で `push` の deps に `check` + `checkPkfire` を挟むと「pkf-tasks 古い / pkfire 古い」両方を一度に検知できる。
+
+### Internal
+
+- **release.yml が CHANGELOG.md から release notes を自動抽出** — 該当 `## <version>` section を `awk` で抽出して `gh release edit --notes-file` で上書き。手動の `gh release create --notes-file /tmp/...md` が不要に (pkfire の `scripts/release-notes.sh` 流儀を参考)。
 
 ## 0.0.14 — 2026-05-12
 

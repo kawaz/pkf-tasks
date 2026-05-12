@@ -1,0 +1,39 @@
+/// 利用側 Taskfile.pkl の `amends "package://...pkfire@<version>#/Taskfile.pkl"` を
+/// pkfire の最新 release tag に書き換える action task。`migrate:check-pkfire-current`
+/// が fail したときの復旧手段。
+///
+/// 内部実装: **`pkf migrate --to=<latest>`** (pkfire 0.6.0+ 内蔵 CLI) を呼ぶ。
+/// pkfire 側は eval 検証つきで amends URI を書き換え、fail なら revert する。
+/// 自前 sed 実装より strict (Pkl 評価で post-migrate 検証あり)。
+///
+/// 注: `pkf migrate` は **amends URI のみ** を対象とする。`import` URI
+/// (pkf-tasks 等) には別途 `migrate:update-pkf-tasks` を使う。
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.migrate.updatePkfire
+
+import "@pkfire/Taskfile.pkl"
+
+taskfilePath: String = "Taskfile.pkl"
+remoteRepoSpec: String = "mizchi/pkfire"
+tagPrefix: String = "pkfire@"
+
+update: Taskfile.Task = new Taskfile.Task {
+  name = "migrate:update-pkfire"
+  description =
+    "update pkfire amends URI in \(taskfilePath) to latest released version (uses pkf migrate)"
+  cache = false
+  cmd =
+    """
+    set -euo pipefail
+    if ! command -v bump-semver >/dev/null 2>&1; then
+      echo 'ERROR: bump-semver not installed' >&2
+      echo '       Install: brew install kawaz/tap/bump-semver' >&2
+      exit 1
+    fi
+    new_version=$(bump-semver get 'vcs:latest-tag(\(remoteRepoSpec))')
+    # `pkf migrate --to=<ver>` は pkfire 0.6.0+ 内蔵、eval 検証つきで amends URI を
+    # 書き換える。fail 時は自動 revert される。
+    pkf migrate --to="${new_version}" --file=\(taskfilePath)
+    echo "updated to \(tagPrefix)${new_version} — review the diff and commit"
+    """
+}
