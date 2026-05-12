@@ -59,8 +59,6 @@ v1.0.0 以降は SemVer 2.0.0 に従う。1.x 系列の間は破壊的変更な�
 
 major 浮動が許容できるなら `pkf-tasks@1` で pin、完全再現したいなら exact pin (例: `pkf-tasks@1.0.0`)。どちらのケースでも `migrate:check-*` gate が pin の鮮度を保つ。
 
-> Note: Pkl package URI は **`v` prefix なしの bare SemVer** (`pkf-tasks@1`、`pkf-tasks@v1` ではない) — Pkl の `hasVersion` 制約で強制される。GitHub Actions tag で見慣れた `@v1` 形式とは別系統で、pkfire は両方並列に tag を切っている (`pkfire@1` は Pkl 用、`v1` は `uses: mizchi/pkfire@v1` 用)。pkf-tasks は Pkl 専用なので Pkl 形式の tag だけを切る。
-
 pkfire 0.6.0+ では CLI で **glob target** が使え、`<group>:<action>` 命名と相性が良い:
 
 ```bash

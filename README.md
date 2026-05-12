@@ -59,8 +59,6 @@ Internal implementation files (`vcs/iface.pkl`, `vcs/jj.pkl`, `vcs/git.pkl`, `vc
 
 Pin to `pkf-tasks@1` for major-only floating, or to an exact version (e.g. `pkf-tasks@1.0.0`) for full reproducibility. The `migrate:check-*` gates keep the pin up to date regardless.
 
-> Note: Pkl package URIs use **bare SemVer without a `v` prefix** (`pkf-tasks@1`, not `pkf-tasks@v1`) — this is enforced by Pkl's `hasVersion` constraint. The `@v1` form familiar from GitHub Actions tags is a separate convention; pkfire keeps both styles as parallel tags (`pkfire@1` for Pkl, `v1` for `uses: mizchi/pkfire@v1`), but pkf-tasks is Pkl-only so we only ship the Pkl-style tag.
-
 Pkfire 0.6.0+ supports **glob targets** on the CLI, composing well with the `<group>:<action>` task naming:
 
 ```bash
