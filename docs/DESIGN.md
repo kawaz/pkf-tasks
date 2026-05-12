@@ -145,13 +145,13 @@ The module pins `minPklVersion = "0.31.0"` (same as pkfire) to keep `pkl format`
 
 ### `semver:check-bumped` — bump-omission gate
 
-A gate Task that fails if `triggerPaths` have changed since a comparison ref but the VERSION files were not bumped. Typical uses: a pre-push guard (`compareRef = main@origin`) and a pre-release CI guard (`compareRef = the most recent v* tag`).
+A gate Task that fails if `triggerPaths` have changed since a comparison ref but the **consumer-project version files** (specified via `versionFiles`, e.g. `VERSION` / `Cargo.toml` / `package.json` / project-specific) were not bumped. Typical uses: a pre-push guard (`compareRef = main@origin`) and a pre-release CI guard (`compareRef = the most recent v* tag`).
 
 It is parameterized so the consumer can instantiate multiple tasks:
 
 - `compareRefCmd: String` — body of a bash command substitution returning the comparison ref
 - `triggerPaths: List<String>` — paths whose changes should trigger the check (default `src/`)
-- `versionFiles: List<String>` — VERSION files that must be bumped (multiple allowed)
+- `versionFiles: List<String>` — version files that must be bumped (consumer-project's `VERSION` / `Cargo.toml` / `package.json` etc., multiple allowed)
 - `taskName: String` — task name (consumers usually instantiate two: `semver:check-version-bumped` and `semver:check-against-latest-release`)
 - `needsFetchTags: Boolean` — when `true`, inserts `vcs.fetchTags` into the task's `deps` (added in v0.0.9). Enable this whenever the `compareRefCmd` resolves to a tag-derived ref (`git tag -l 'v*' ...`, `vcs:latest-tag()`, ...) so the local jj/git tag view is synced before comparison. Defaults to `false` for the common `main@origin` push-gate case.
 

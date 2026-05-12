@@ -8,7 +8,8 @@
 ///     例: `echo main@origin` (push 前ガード) / `git tag -l 'v*' --sort=-v:refname | head -1`
 ///     (release 前ガード)
 ///   - `triggerPaths`: 変更検知の対象 paths。default は `src/`
-///   - `versionFiles`: bump 対象の VERSION ファイル一覧。複数可
+///   - `versionFiles`: bump 対象の version ファイル一覧 (e.g. `VERSION` /
+///     `Cargo.toml` / `package.json` / `pyproject.toml` / 利用者カスタム)。複数可
 ///   - `taskName`: task 名 (利用側で別 task として 2 つインスタンス化したい時に変える)
 ///   - `needsFetchTags`: tag 系の compareRef (`git tag -l 'v*' ...`, `vcs:latest-tag()`)
 ///     を使う場合に true。`vcs.fetchTags` を deps に挟んで jj/git の tag 同期を行う
@@ -48,8 +49,10 @@ compareRefCmd: String = "echo main@origin"
 /// 変更検知の対象 paths。VCS の path filter にそのまま渡される。
 triggerPaths: List<String> = List("src/")
 
-/// bump 対象の VERSION ファイル一覧。複数指定時は全ファイルが
-/// bump 済みであることを要求する (1 つでも未 bump ならエラー)。
+/// bump 対象の version ファイル一覧 (利用側プロジェクトのもの、e.g. `VERSION` /
+/// `Cargo.toml` / `package.json` / 利用者カスタム)。複数指定時は全ファイルが
+/// bump 済みであることを要求する (1 つでも未 bump ならエラー)。default は
+/// プレーンテキストの `VERSION` (bump-semver の `vcs:latest-tag` 等で使う慣習)。
 versionFiles: List<String> = List("VERSION")
 
 /// task name。利用側で複数インスタンスを作る時に別名を付ける。

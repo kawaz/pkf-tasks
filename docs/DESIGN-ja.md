@@ -145,13 +145,13 @@ local lint: Task = new {
 
 ### `semver:check-bumped` — bump 漏れ gate
 
-「比較対象 ref 以降に `triggerPaths` が変わったのに VERSION ファイルが bump されていなければ fail」を検査するゲート Task。push 前 (`compareRef = main@origin`) や CI release 前 (`compareRef = 直近の v* tag`) のガードとして使う。
+「比較対象 ref 以降に `triggerPaths` が変わったのに**利用側プロジェクトの version ファイル** (`versionFiles` で指定、e.g. `VERSION` / `Cargo.toml` / `package.json` / 利用者カスタム) が bump されていなければ fail」を検査するゲート Task。push 前 (`compareRef = main@origin`) や CI release 前 (`compareRef = 直近の v* tag`) のガードとして使う。
 
 パラメータ化されており、利用側で複数インスタンスを切れる:
 
 - `compareRefCmd: String` — 比較対象 ref を返す bash command substitution の中身
 - `triggerPaths: List<String>` — 変更検知対象 (default `src/`)
-- `versionFiles: List<String>` — bump 対象 VERSION ファイル一覧 (複数可)
+- `versionFiles: List<String>` — bump 対象の version ファイル一覧 (利用側プロジェクトの `VERSION` / `Cargo.toml` / `package.json` 等、複数可)
 - `taskName: String` — task 名 (利用側で `semver:check-version-bumped` / `semver:check-against-latest-release` のように別名を付ける)
 - `needsFetchTags: Boolean` — true なら deps に `vcs.fetchTags` を挟む (v0.0.9 追加)。tag 系の compareRef (`git tag -l 'v*' ...`, `vcs:latest-tag()`) を使う場合に jj/git の tag 同期を保証するため。default false (push 前 gate 等、`main@origin` 比較では不要)
 
