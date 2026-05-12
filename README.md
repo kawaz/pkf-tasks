@@ -36,11 +36,11 @@ Usefulness legend: ★★★ = required across most kawaz repos / wired into `pu
 
 | Task | Usefulness | Purpose | Args / Notes |
 |---|---|---|---|
-| `vcs:commit` | ★★★ | Auto-dispatch: jj `describe -m && new`, or git `commit -m` | param: `message` (required) |
-| `vcs:push` | ★★★ | Auto-dispatch: jj `bookmark set main -r @- && jj git push`, or git `push origin main` | Extend with `(vcs.push) { deps { ... } }` to wire pre-push gates |
-| `vcs:fetch` | ★★ | Thin wrapper over jj `git fetch` / git `fetch` | — |
-| `vcs:ensure-clean` | ★★★ | Verify working copy is clean (`@` empty / porcelain empty) | Wire into `push` gates |
-| `vcs:fetch-tags` | ★★ | Sync tags (jj: `jj git fetch \|\| true; jj git import \|\| true` / git: `git fetch --tags origin`) | Precedes `semver:check-against-latest-release` etc. |
+| `vcs:commit` | ★★★ | Commit (jj/git auto-dispatch) | param: `message` (required) |
+| `vcs:push` | ★★★ | Push to remote (jj/git auto-dispatch) | Extend with `(vcs.push) { deps { ... } }` to wire pre-push gates |
+| `vcs:fetch` | ★★ | Fetch from remote (jj/git auto-dispatch) | — |
+| `vcs:ensure-clean` | ★★★ | Verify working copy is clean (jj/git auto-dispatch) | Wire into `push` gates |
+| `vcs:fetch-tags` | ★★ | Sync tags (jj/git auto-dispatch) | Precedes `semver:check-against-latest-release` etc. |
 
 > Note: there are also Pkl helper functions (`vcs.diffSummary` / `vcs.readAtRef`) that return bash `$(...)` fragments for string-interpolation into other Tasks' cmds. They are internal-implementation / advanced use; see [DESIGN.md](./docs/DESIGN.md).
 
@@ -48,13 +48,13 @@ Usefulness legend: ★★★ = required across most kawaz repos / wired into `pu
 
 | Task | Usefulness | Purpose | Args / Notes |
 |---|---|---|---|
-| `docs:check-translations` | ★★★ | Verifies paired `*-ja.md` / `*.md` documents (existence, mutual link, commit-timestamp order) for README/DESIGN/MANUAL | Wire into `push` deps |
+| `docs:check-translations` | ★★★ | Translation-pair (`*-ja.md` / `*.md`) integrity check | Wire into `push` deps |
 
 ### `lint/` — language-agnostic + meta lint
 
 | Task | Usefulness | Purpose | Args / Notes |
 |---|---|---|---|
-| `lint:pkl` | ★★★ | Apply `pkl format -w` to `**/*.pkl` + `PklProject*` + `PklProject.deps.json` | Wire into `push` deps |
+| `lint:pkl` | ★★★ | Auto-format all Pkl files (`pkl format -w`) | Wire into `push` deps |
 
 > An internal `lint:all-coverage` (orphan-module detection) also exists; rarely used by consumers.
 
@@ -62,8 +62,8 @@ Usefulness legend: ★★★ = required across most kawaz repos / wired into `pu
 
 | Task | Usefulness | Purpose | Args / Notes |
 |---|---|---|---|
-| `semver:check-bumped` | ★★★ | Fail if `triggerPaths` changed since `compareRef` without a corresponding `versionFiles` bump | Parameterise per-instance via object-amends; usage example below |
-| `semver:compare` | ★★ | Thin wrapper around `bump-semver compare` | `acceptsArgs = true`, e.g. `pkf run semver:compare -- gt VERSION 1.0.0` |
+| `semver:check-bumped` | ★★★ | Version-bump gate (fail if version files weren't bumped after relevant changes) | Parameterise per-instance via object-amends; usage example below |
+| `semver:compare` | ★★ | Thin wrapper around `bump-semver compare` | e.g. `pkf run semver:compare -- gt VERSION 1.0.0` |
 
 Usage example for `semver:check-bumped`:
 
@@ -81,11 +81,11 @@ Usage example for `semver:check-bumped`:
 | Task | Usefulness | Purpose | Args / Notes |
 |---|---|---|---|
 | **`migrate:check-*`** | — (glob, gate group) | Detect upstream drift | `pkf run 'migrate:check-*'` to run all; wire into `push` deps |
-| └ `migrate:check-pkf-tasks-current` | ★★★ | Fail if Taskfile.pkl's `pkf-tasks@<version>` import is behind latest release | Run after `vcs:fetch-tags` |
-| └ `migrate:check-pkfire-current` | ★★★ | Fail if Taskfile.pkl's `pkfire@<version>` amends is behind latest release | Run after `vcs:fetch-tags` |
+| └ `migrate:check-pkf-tasks-current` | ★★★ | Fail if pkf-tasks `import` is behind latest release | — |
+| └ `migrate:check-pkfire-current` | ★★★ | Fail if pkfire `amends` is behind latest release | — |
 | **`migrate:update-*`** | — (glob, fix group) | Auto-fix upstream drift | `pkf run 'migrate:update-*'` to run all; remediation when checks fail |
-| └ `migrate:update-pkf-tasks` | ★★ | sed-rewrite the `import` URI to the latest tag | No auto-commit; review then `vcs:commit` |
-| └ `migrate:update-pkfire` | ★★ | Wraps `pkf migrate --to=<latest>` (pkfire 0.6.0+ built-in, eval-verified, auto-reverts on failure) | No auto-commit; review then `vcs:commit` |
+| └ `migrate:update-pkf-tasks` | ★★ | Rewrite pkf-tasks `import` to latest tag | No auto-commit |
+| └ `migrate:update-pkfire` | ★★ | Rewrite pkfire `amends` to latest tag (eval-verified) | No auto-commit |
 
 ## Usage
 
