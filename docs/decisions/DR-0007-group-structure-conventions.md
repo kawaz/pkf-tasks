@@ -1,7 +1,13 @@
 # DR-0007: pkf-tasks の group 構造規約
 
-- Status: Active
+- Status: Active (一部 historical: v1.0.0 で `<group>.pkl` flat 化、v2.0.0 で `lint` group 削除 — DR-0008 参照)
 - Date: 2026-05-12
+
+> 注: 本 DR は v0.0.13 時点の規約を記録したもの。以降の進化は別 DR で追跡:
+> - **v1.0.0**: sub `<group>/all.pkl` 集約 → `tasks/<group>.pkl` flat 化 (CHANGELOG 参照)
+> - **v2.0.0**: `lint` group を library export から削除、`Taskfile.pkl` 内に inline 化 — DR-0008
+>
+> 規約の **本質** (1 group = 1 ドメイン責務、`<group>:<action>` 命名、対称命名規約、孤児検出による集約整合性) は引き続き有効。group 一覧と一部の構造 (sub `all.pkl` 集約スタイル、`lint:all-coverage` の library task としての位置付け) は historical context として読むこと。
 
 ## Context
 

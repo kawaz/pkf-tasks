@@ -1,6 +1,53 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1`) is supported.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
+
+## 2.0.0 — 2026-05-12
+
+A same-day major bump after a post-1.0.0 audit (the v1 release was less than 24 h old, the only consumer was `kawaz/bump-semver` and the `@1` pin had not yet been used in anger). The audit found that the `lint` group was library-internal to `pkf-tasks` itself rather than a generally reusable concern, so it leaked through what `1.0.0` had just declared as a stable public surface. Cutting `2.0.0` immediately while no real consumer depended on `@1` was cheaper than keeping the leak around for a future major.
+
+### Breaking — `lint` group removed from the library
+
+- **Removed** from library export: `tasks/lint.pkl`, `tasks/lint/pkl.pkl`, `tasks/lint/all-coverage.pkl`, and the entire `tasks/lint/` directory. The tasks themselves (`lint:pkl`, `lint:all-coverage`) were only ever useful to `pkf-tasks` itself; they were not consumed by any external project.
+- The aggregator `tasks/all.pkl` no longer exposes `kawaz.lint.*`. Consumers that did `...kawaz.lint.allTasks` must drop that line.
+- The dogfood equivalents have been **moved inline** into the repo-root `Taskfile.pkl` of `pkf-tasks` (not part of the library): `lint:pkl` (Pkl format) and a renamed `check:orphan-modules` (formerly `lint:all-coverage`, using the `check:` prefix to align with `semver:check-*` / `migrate:check-*` gate-task naming). The rename is purely internal to `pkf-tasks`'s own CI and does not affect consumers.
+
+### Migration for consumers
+
+Drop any reference to `kawaz.lint.*` / `pkf-tasks#/lint.pkl`:
+
+```pkl
+// Before (1.0.0):
+import "package://.../pkf-tasks@1.0.0#/all.pkl" as kawaz
+tasks {
+  ...kawaz.vcs.allTasks
+  ...kawaz.docs.allTasks
+  ...kawaz.lint.allTasks      // ← remove this line
+  ...kawaz.migrate.allTasks
+  kawaz.semver.compare
+}
+
+// After (2.0.0):
+import "package://.../pkf-tasks@2.0.0#/all.pkl" as kawaz
+tasks {
+  ...kawaz.vcs.allTasks
+  ...kawaz.docs.allTasks
+  ...kawaz.migrate.allTasks
+  kawaz.semver.compare
+}
+```
+
+If a project actually wants `pkl format -w` in its own pipeline, add it directly to its `Taskfile.pkl` (a 5-line `local lintPkl: Task = new { ... }`) instead of taking a library dependency for it.
+
+### Stability statement (2.x)
+
+Public surface that is **part of the 2.x contract** (breaking changes require a 3.x bump):
+
+- `tasks/<group>.pkl` entry FQN + exported fields (task references + `allTasks` Listing + Pkl function helpers in vcs) — groups: `vcs` / `docs` / `semver` / `migrate`
+- `tasks/all.pkl` bundled entry + `kawaz.<group>.<field>` namespace shape
+- Public task names (`vcs:commit` / `docs:check-translations` / `semver:check-bumped` / `semver:compare` / `migrate:check-pkf-tasks-current` etc.)
+
+Public surface that is **not part of the 2.x contract**: internal implementation files under each `<group>/` directory and CLI command bash internals (same as 1.x).
 
 ## 1.0.0 — 2026-05-12
 

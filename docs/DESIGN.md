@@ -2,7 +2,7 @@
 
 > English | [日本語](./DESIGN-ja.md)
 
-Internal architecture and design decisions for `kawaz/pkf-tasks`. End-user usage lives in [README.md](../README.md); per-release changes in [CHANGELOG.md](../CHANGELOG.md).
+Internal architecture and design decisions for `kawaz/pkf-tasks`. End-user usage lives in [README.md](../README.md); per-release changes in [CHANGELOG.md](../CHANGELOG.md). This document describes the v2.x library implementation.
 
 ## Module layout
 
@@ -11,26 +11,26 @@ tasks/
 ├── PklProject               # Pkl package metadata (packageUri / dependencies / version)
 ├── PklProject.deps.json     # Resolved dependency lockfile (SHA256-pinned)
 ├── all.pkl                  # Root aggregator — single `import .../all.pkl as kawaz` entry point
+├── vcs.pkl                  # vcs group entry (formerly vcs/all.pkl, flattened in v1.0.0)
 ├── vcs/
 │   ├── iface.pkl            # abstract module (commit / push / fetch / ensureClean / fetchTags)
 │   ├── jj.pkl               # jj implementation (extends iface)
 │   ├── git.pkl              # git implementation (extends iface)
 │   └── auto.pkl             # entry — Task export + Pkl function helpers (diffSummary / readAtRef)
+├── docs.pkl                 # docs group entry
 ├── docs/
 │   └── translations.pkl     # README{,-ja}.md etc. pair check (single task, bash for loop)
-├── lint/
-│   ├── pkl.pkl              # language-agnostic `pkl format -w` task
-│   ├── all-coverage.pkl     # `lint:all-coverage` — orphan .pkl module detector under tasks/
-│   └── all.pkl              # lint/ sub aggregator
+├── semver.pkl               # semver group entry
 ├── semver/
 │   ├── check-bumped.pkl     # parameterized SemVer bump gate (bump-semver required)
-│   ├── compare.pkl          # `semver:compare` — thin wrapper around bump-semver compare (acceptsArgs)
-│   └── all.pkl              # semver/ sub aggregator
+│   └── compare.pkl          # `semver:compare` — thin wrapper around bump-semver compare (acceptsArgs)
+├── migrate.pkl              # migrate group entry
 └── migrate/
     ├── check-current.pkl    # `migrate:check-pkf-tasks-current` — pkf-tasks import freshness gate
-    ├── update-self.pkl      # `migrate:update-pkf-tasks` — rewrites the import in Taskfile.pkl
-    └── all.pkl              # migrate/ sub aggregator
+    └── update-self.pkl      # `migrate:update-pkf-tasks` — rewrites the import in Taskfile.pkl
 ```
+
+In v1.0.0 the sub `<group>/all.pkl` aggregators were flattened into `tasks/<group>.pkl` (see CHANGELOG). The `lint` group was **removed from the library export in v2.0.0** — `pkl format -w` and orphan-module detection are now inlined as tasks inside pkf-tasks' own `Taskfile.pkl` and are no longer shipped as library tasks. See [DR-0008](./decisions/DR-0008-lint-group-removed-from-library.md) for the rationale.
 
 The internal module FQN uses `com.github.kawaz.pkfTasks.*`. Consumers always `import ... as <alias>`, so this rename is non-breaking; the reverse-domain notation just had to be corrected because `kawaz.com` is not owned (fixed in v0.0.6).
 
@@ -39,38 +39,27 @@ The internal module FQN uses `com.github.kawaz.pkfTasks.*`. Consumers always `im
 A single `import "package://...pkf-tasks@<version>#/all.pkl" as kawaz` line gives consumers access to every group (introduced in v0.0.10). Since every kawaz/* repo is expected to use the full pkf-tasks surface, an aggregate import is more DRY than wiring up individual `vcs/auto.pkl as vcs`, `docs/translations.pkl as docs`, ... imports.
 
 ```pkl
-import "package://...pkf-tasks@0.0.12#/all.pkl" as kawaz
+import "package://...pkf-tasks@2.0.0#/all.pkl" as kawaz
 
 tasks {
   ...kawaz.vcs.allTasks                                       // commit / push / fetch / ensureClean / fetchTags
-  kawaz.docs.checkTranslations
-  ...kawaz.lint.allTasks                                      // pkl format + all-coverage
+  ...kawaz.docs.allTasks                                      // checkTranslations
   kawaz.semver.compare                                        // ad-hoc CLI use (acceptsArgs)
   (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check  // parameterize via module reference
   ...kawaz.migrate.allTasks                                   // check + update
 }
 ```
 
-The structure is two-tiered: the **root `tasks/all.pkl`** imports each group's `tasks/<group>/all.pkl` and re-exports it under a namespace, while each sub `all.pkl` bundles that group's modules.
+The structure is two-tiered: the **root `tasks/all.pkl`** imports each group's `tasks/<group>.pkl` and re-exports it under a namespace, while each group entry bundles that group's modules (the sub `<group>/all.pkl` aggregators were flattened into `tasks/<group>.pkl` in v1.0.0; the `lint` group was removed in v2.0.0 — see [DR-0007](./decisions/DR-0007-group-structure-conventions.md) and [DR-0008](./decisions/DR-0008-lint-group-removed-from-library.md)).
 
-### Task-direct vs. module-reference exports in each sub `all.pkl`
+### Task-direct vs. module-reference exports in each group entry
 
-Each sub `all.pkl` mixes two export styles depending on intent:
+Each `tasks/<group>.pkl` mixes two export styles depending on intent:
 
-- **Task-direct export** — `kawaz.lint.pkl` (a `Task`) can be registered as-is with `tasks { kawaz.lint.pkl }`. The ad-hoc CLI task `kawaz.semver.compare` (an `acceptsArgs` Task) follows the same shape.
+- **Task-direct export** — `kawaz.semver.compare` (an `acceptsArgs` Task) can be registered as-is with `tasks { kawaz.semver.compare }`.
 - **Module-reference export** — `kawaz.semver.checkBumped` is exported as the **module** so consumers can parameterize it: `(kawaz.semver.checkBumped) { compareRefCmd = ...; versionFiles = ... }.check` produces an instance task.
 
-Each sub `all.pkl` also exposes `allTasks: Listing<Task>` so consumers can use spread registration like `tasks { ...kawaz.lint.allTasks }` (added in v0.0.11). Parameterize-required modules are intentionally excluded from `allTasks` — instantiating them is the consumer's responsibility.
-
-### `lint:all-coverage` — automating aggregator integrity via orphan detection
-
-Hand-maintaining `all.pkl` is fragile (it's easy to add a new module and forget to wire it in). `lint:all-coverage` is the gate task that catches this in CI / pre-push (introduced in v0.0.10, detection logic improved in v0.0.11).
-
-The detection rule is: **fail if any `.pkl` module under `tasks/` is not referenced from anywhere else** (an "orphan" check). The v0.0.10 implementation looked only at `all.pkl`-family references, which gave false positives for iface-implementation files like `vcs/jj.pkl` / `vcs/git.pkl` (imported by `vcs/auto.pkl` but never written into `all.pkl`). v0.0.11 relaxed the scope to "any `.pkl` under tasks/" and resolved the issue.
-
-Exclusions: `PklProject*` (metadata), `Taskfile.pkl` (dogfood entry), `iface.pkl` (abstract; `extends` references are not visible to grep, so they're explicitly excluded), and `all.pkl` itself (aggregator endpoint referenced externally via package URLs).
-
-Design choice: detection only for now. Auto-fix (regenerating `all.pkl`) is left for a future `fix:all-coverage` task. The detect/fix split mirrors `semver:check-version-bumped` (gate) vs. `bump-version` (action).
+Each group entry also exposes `allTasks: Listing<Task>` so consumers can use spread registration like `tasks { ...kawaz.vcs.allTasks }` (added in v0.0.11). Parameterize-required modules are intentionally excluded from `allTasks` — instantiating them is the consumer's responsibility.
 
 ## VCS abstraction — abstract module + extends + runtime dispatch
 
@@ -124,22 +113,6 @@ The checks per pair:
 5. `ja_ts <= en_ts` for commit timestamps (the English translation must not lag behind)
 
 The cmd uses `set -euo pipefail` plus an explicit `failed=0` accumulator and `exit $failed` at the end. This way **every pair is checked**, but **any single failure exits the task with status 1**. `set -e` alone would stop at the first failure and hide subsequent ones; the combination gives the best signal ([CHANGELOG 0.0.4](../CHANGELOG.md#004--2026-05-11)).
-
-## Language-agnostic Lint — `lint/pkl.pkl`
-
-`tasks/lint/pkl.pkl` exposes a `lint:pkl` task that runs `pkl format -w` recursively against `**/*.pkl`, `PklProject`, and `PklProject.deps.json`. Pkl formatting is a shared concern across kawaz/* repos, so it ships independently of language-specific lint (`gofmt` / `cargo fmt` / etc.).
-
-Consumers wire it into an umbrella `lint` task alongside their language-specific lint tasks:
-
-```pkl
-local lint: Task = new {
-  name = "lint"; cache = false
-  deps { goLint; pklLint.format }
-  cmd = "echo lint ok"
-}
-```
-
-The module pins `minPklVersion = "0.31.0"` (same as pkfire) to keep `pkl format` behaviour consistent across kawaz/* repos.
 
 ## SemVer group — `semver/check-bumped.pkl` + `semver/compare.pkl`
 
@@ -207,7 +180,7 @@ The complex bash pipeline disappears, and knowledge ends up in the right places 
 package {
   name = "pkf-tasks"
   baseUri = "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/\(name)"
-  version = "0.0.12"
+  version = "2.0.0"
   packageZipUrl = "https://github.com/kawaz/pkf-tasks/releases/download/\(name)@\(version)/\(name)@\(version).zip"
   ...
 }

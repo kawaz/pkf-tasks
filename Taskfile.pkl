@@ -1,25 +1,76 @@
-/// kawaz/pkf-tasks 自身の Taskfile (dogfooding 用、CI からも参照).
+/// kawaz/pkf-tasks 自身の Taskfile (dogfooding + CI 用).
 ///
 /// 目的:
-///   1. 提供している `docs:check-translations` / `lint:pkl` / `lint:all-coverage`
-///      を自リポでも使う
-///   2. CI ワークフローを `pkf run ci` 1 コマンドに集約
-///   3. local 開発でも `pkf run lint` / `pkf run ci` などで自リポを操作
+///   1. 提供している `docs:check-translations` を自リポでも使う
+///   2. 自リポ専用の lint / check task (`lint:pkl` / `check:orphan-modules`) を
+///      inline 定義 (v2.0.0 で library export から外し、ここに集約)
+///   3. CI ワークフローを `pkf run ci` 1 コマンドに集約
 ///
 /// 制限事項 (技術的制約):
-///   `pkf` (pkfire 0.4.0) は pkl-go の Evaluator API を呼ぶ際に PklProject の
+///   `pkf` (pkfire 0.6.0) は pkl-go の Evaluator API を呼ぶ際に PklProject の
 ///   auto-detection を有効にしていない。結果 `@<dep>/...` 形式 import が project
 ///   not found でエラーになるため、自身を `package://...` 形式で取り込む
-///   準 dogfood (= release zip 経由) になっている。pkfire 上流に PklProject
-///   auto-detection の issue を上げて将来解消したい (ROADMAP)。
-///
-/// 0.0.10 から `all.pkl` 集約 import を採用:
-///   import "package://...pkf-tasks@<version>#/all.pkl" as kawaz
-///   → kawaz.vcs.* / kawaz.docs.* / kawaz.lint.* / kawaz.semver.* に透過アクセス
+///   準 dogfood (= release zip 経由) になっている。
 @ModuleInfo { minPklVersion = "0.31.0" }
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
 
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.17#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
+
+// =============================================================================
+// Self-dogfood lint / check (v2.0.0 で library export から外して inline 化)
+//
+// lint:* = コード整形系 (Pkl format)
+// check:* = 構造・整合性 gate (孤児 module 検出など、kawaz の semver:check-* /
+//           migrate:check-* と同じ check: prefix 規約)
+// =============================================================================
+
+local lintPkl: Task = new {
+  name = "lint:pkl"
+  description = "pkl format -w (recursively format all Pkl files)"
+  inputs {
+    "**/*.pkl"
+    "**/PklProject"
+    "**/PklProject.deps.json"
+  }
+  cmd =
+    """
+    set -euo pipefail
+    pkl format -w .
+    """
+}
+
+local checkOrphanModules: Task = new {
+  name = "check:orphan-modules"
+  description =
+    "ensure every .pkl module under tasks/ is referenced from elsewhere (no orphans)"
+  cache = false
+  workdir = "tasks"
+  cmd =
+    """
+    set -euo pipefail
+    missing=()
+    while IFS= read -r f; do
+      base=$(basename "$f")
+      # f 自身を除いた全 .pkl のいずれかで base が言及されているか
+      ref=$(find . -name "*.pkl" -not -path "$f" -exec grep -l -- "$base" {} \\; 2>/dev/null | head -1)
+      if [ -z "$ref" ]; then
+        missing+=("$f")
+      fi
+    done < <(find . -name "*.pkl" \\
+      -not -name "PklProject*" \\
+      -not -name "Taskfile.pkl" \\
+      -not -name "iface.pkl" \\
+      -not -name "all.pkl")
+    if [ ${#missing[@]} -gt 0 ]; then
+      echo 'ERROR: orphan module(s) detected (no references from other .pkl files):' >&2
+      printf '  - %s\\n' "${missing[@]}" >&2
+      echo '' >&2
+      echo 'either re-export via all.pkl group, or import from another module under tasks/' >&2
+      exit 1
+    fi
+    echo "ok: no orphan modules"
+    """
+}
 
 // =============================================================================
 // CI 内部 task: smoke eval + package build
@@ -33,7 +84,7 @@ local smokeEval: Task = new {
   cmd =
     """
     set -euo pipefail
-    for module in vcs.pkl docs.pkl lint.pkl semver.pkl migrate.pkl all.pkl vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl lint/pkl.pkl lint/all-coverage.pkl semver/check-bumped.pkl semver/compare.pkl migrate/check-current.pkl migrate/update-self.pkl migrate/check-pkfire-current.pkl migrate/update-pkfire.pkl; do
+    for module in vcs.pkl docs.pkl semver.pkl migrate.pkl all.pkl vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl semver/check-bumped.pkl semver/compare.pkl migrate/check-current.pkl migrate/update-self.pkl migrate/check-pkfire-current.pkl migrate/update-pkfire.pkl; do
       echo "==> pkl eval $module"
       pkl eval "$module" >/dev/null
     done
@@ -57,23 +108,14 @@ local packageBuild: Task = new {
 // User-facing umbrellas
 // =============================================================================
 
-local lint: Task = new {
-  name = "lint"
-  description = "lint:pkl + lint:all-coverage (dogfooded from kawaz/pkf-tasks itself)"
-  cache = false
-  // 0.0.11 で lint:all-coverage の孤児検出ロジックが正しく動くようになったので、
-  // 自身の ci でも有効化 (vcs/jj.pkl / vcs/git.pkl の false-positive 解消)。
-  deps { kawaz.lint.pkl; kawaz.lint.allCoverage }
-  cmd = "echo lint ok"
-}
-
 local ci: Task = new {
   name = "ci"
-  description = "smoke eval + package build + lint + docs:check-translations (full self-dogfood)"
+  description =
+    "lint:pkl + check:orphan-modules + smoke eval + package build + docs:check-translations"
   cache = false
   deps {
-    kawaz.lint.pkl
-    kawaz.lint.allCoverage
+    lintPkl
+    checkOrphanModules
     smokeEval
     packageBuild
     kawaz.docs.checkTranslations
@@ -109,15 +151,13 @@ local push: Task = (kawaz.vcs.push) {
 
 tasks {
   default
-  lint
+  lintPkl
+  checkOrphanModules
   ci
   smokeEval
   packageBuild
   ...kawaz.vcs.allTasks
   ...kawaz.docs.allTasks
-  // lint module 群 (lint/all.pkl 経由)
-  kawaz.lint.pkl
-  kawaz.lint.allCoverage
   // 汎用 semver compare (v0.0.8 から、ad-hoc CLI 用)
   kawaz.semver.compare
   push

@@ -6,7 +6,6 @@
 ///   tasks {
 ///     ...kawaz.vcs.allTasks
 ///     ...kawaz.docs.allTasks
-///     ...kawaz.lint.allTasks
 ///     ...kawaz.migrate.allTasks
 ///     kawaz.semver.compare
 ///     (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check
@@ -18,7 +17,6 @@
 module com.github.kawaz.pkfTasks.all
 
 import "docs.pkl" as docsMod
-import "lint.pkl" as lintMod
 import "migrate.pkl" as migrateMod
 import "semver.pkl" as semverMod
 import "vcs.pkl" as vcsMod
@@ -28,10 +26,6 @@ vcs = vcsMod
 
 /// docs: 翻訳ペア整合性チェック。
 docs = docsMod
-
-/// lint: 言語横断の Pkl format (`kawaz.lint.pkl`) + 孤児 module 検出
-/// (`kawaz.lint.allCoverage`)。
-lint = lintMod
 
 /// semver: SemVer gate (`checkBumped` は module 参照、parameterize 用) +
 /// ad-hoc compare (`compare` は task 直接)。`bump-semver` CLI 必須。
