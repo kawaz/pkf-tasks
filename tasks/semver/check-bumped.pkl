@@ -1,6 +1,7 @@
-/// 「VCS 上の比較対象 ref から特定 paths が変更されたなら、VERSION ファイルも
-/// bump されていること」を検査する gate task。push 前 / CI release 前のガードとして
-/// 使う。
+/// 「VCS 上の比較対象 ref から特定 paths が変更されたなら、利用側プロジェクトの
+/// version ファイル (`versionFiles` で指定、e.g. `VERSION` / `Cargo.toml` /
+/// `package.json` / 利用者カスタム) も bump されていること」を検査する gate task。
+/// push 前 / CI release 前のガードとして使う。
 ///
 /// パラメータ化:
 ///   - `compareRefCmd`: 比較対象 ref を返す bash command substitution の中身。
@@ -61,7 +62,7 @@ needsFetchTags: Boolean = false
 check: Taskfile.Task = new Taskfile.Task {
   name = taskName
   description =
-    "ensure VERSION is bumped if triggerPaths changed since compareRef (bump-semver required)"
+    "ensure the consumer-project versionFiles are bumped if triggerPaths changed since compareRef (bump-semver required)"
   deps =
     if (needsFetchTags)
       new Listing<Taskfile.Task> { vcs.fetchTags }
