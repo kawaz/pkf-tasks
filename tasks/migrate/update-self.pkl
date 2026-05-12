@@ -5,34 +5,31 @@
 /// 自動 commit はしない (利用者が diff を確認してから手動で commit する流儀。
 /// `semver:check-version-bumped` と `bump-version` を分けるのと同じ思想)。
 ///
-/// パラメータは `migrate:check-pkf-tasks-current` と同じ (`taskfilePath` /
-/// `repoUrl` / `tagPrefix`)。
+/// v0.0.12 から **bump-semver 経由** で最新取得 (`vcs:latest-tag(<repo>)`)
+/// に統一。git ls-remote / 正規表現 pipeline は不要 (bump-semver に集約)。
+///
+/// パラメータは `migrate:check-pkf-tasks-current` と同じ。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.migrate.updateSelf
 
 import "@pkfire/Taskfile.pkl"
 
 taskfilePath: String = "Taskfile.pkl"
-repoUrl: String = "https://github.com/kawaz/pkf-tasks"
+remoteRepoSpec: String = "kawaz/pkf-tasks"
 tagPrefix: String = "pkf-tasks@"
 
 update: Taskfile.Task = new Taskfile.Task {
   name = "migrate:update-pkf-tasks"
-  description = "update pkf-tasks import version in \(taskfilePath) to latest released tag"
+  description = "update \(tagPrefix) import in \(taskfilePath) to latest released version"
   cache = false
-  cmd =
-    """
+  cmd = """
     set -euo pipefail
-    latest=$(git ls-remote --tags \(repoUrl) 2>/dev/null \\
-      | awk '{print $2}' \\
-      | grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+$' \\
-      | sort -V \\
-      | tail -1)
-    if [ -z "$latest" ]; then
-      echo "ERROR: failed to fetch latest tag from \(repoUrl)" >&2
+    if ! command -v bump-semver >/dev/null 2>&1; then
+      echo 'ERROR: bump-semver not installed' >&2
+      echo '       Install: brew install kawaz/tap/bump-semver' >&2
       exit 1
     fi
-    new_version=${latest#\(tagPrefix)}
+    new_version=$(bump-semver get 'vcs:latest-tag(\(remoteRepoSpec))')
     if grep -q "\(tagPrefix)${new_version}" \(taskfilePath); then
       echo "already at \(tagPrefix)${new_version}"
       exit 0

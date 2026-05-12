@@ -1,6 +1,19 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.11`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.12`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.12 — 2026-05-12
+
+### Changed
+
+- **`migrate:check-pkf-tasks-current` / `migrate:update-pkf-tasks` の実装を bump-semver 経由に置換**。v0.0.11 は繋ぎ実装として `git ls-remote --tags` + `awk | grep | sort -V | tail -1` の bash pipeline で remote の最新 tag を取得していたが、bump-semver v0.15.0+ が `vcs:latest-tag(<repo>)` をサポートしたので、本来の責務分担 (bump-semver = VCS-aware SemVer 比較、pkf-tasks = task 合成) に整合させた。
+  - `migrate:check-pkf-tasks-current` のロジック改善:
+    - 最新取得: `bump-semver get vcs:latest-tag(kawaz/pkf-tasks)`
+    - 比較: `bump-semver compare ge <current> <latest>` — 文字列マッチではなく **SemVer 比較** (current >= latest なら gate pass)
+    - 利用側が未 release 版を pin している場合も適切に通る (semantic な比較)
+  - `migrate:update-pkf-tasks` も `bump-semver get` 経由に統一、bash pipeline 削減
+  - 新規パラメータ: `remoteRepoSpec: String = "kawaz/pkf-tasks"` (bump-semver の `vcs:latest-tag(<arg>)` に渡す repo spec、owner/repo 短縮形 or フル URL)
+- **要件追加**: `bump-semver` v0.15.0 以上が PATH に必要 (`brew install kawaz/tap/bump-semver`)
 
 ## 0.0.11 — 2026-05-12
 

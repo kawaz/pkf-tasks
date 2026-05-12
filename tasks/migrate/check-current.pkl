@@ -2,19 +2,15 @@
 /// より古いと fail する gate task。`push` の deps に置いて「気づき発火点」として
 /// 機能させる。
 ///
-/// 設計:
-///   - 現状: `git ls-remote --tags https://github.com/kawaz/pkf-tasks` で remote
-///     の最新 tag を取得 (gh CLI 依存なし)
-///   - 将来: bump-semver の `vcs:latest-tag(<repo>)` (docs/issue 起票済) が
-///     実装されたら `bump-semver get vcs:latest-tag(kawaz/pkf-tasks)` に置換
-///     してロジックを集約する
+/// v0.0.12 から **bump-semver 経由** で最新 tag 取得 + SemVer 比較に切り替え
+/// (bump-semver v0.15.0+ の `vcs:latest-tag(<repo>)` を利用):
+///   - 最新 tag 取得: `bump-semver get vcs:latest-tag(kawaz/pkf-tasks)`
+///   - 比較: `bump-semver compare ge <current> <latest>`
+///   - DR-0006 (VCS knowledge を集約) + bump-semver/pkf-tasks の責務分担に整合
+///     (bump-semver = SemVer 比較 + VCS-aware ref schema、pkf-tasks = task 合成)
 ///
-/// パラメータ化:
-///   - `taskfilePath: String` — チェック対象 Taskfile.pkl のパス (default: 直下)
-///   - `repoUrl: String` — pkf-tasks の remote URL
-///   - `tagPrefix: String` — tag 命名規則 (`pkf-tasks@`)
-///
-/// fail で表示する次アクション: `pkf run migrate:update-pkf-tasks` で自動更新を促す。
+/// 旧版 (0.0.11) の `git ls-remote --tags` ベースは bump-semver 0.15.0 が未公開
+/// 時点の繋ぎ実装。bump-semver 必須化により bash の複雑な pipeline が不要に。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.migrate.checkCurrent
 
@@ -23,32 +19,34 @@ import "@pkfire/Taskfile.pkl"
 /// チェック対象 Taskfile.pkl のパス (利用側 repo の cwd 起点)。
 taskfilePath: String = "Taskfile.pkl"
 
-/// pkf-tasks の git remote URL (将来 fork 等で書き換える余地)。
-repoUrl: String = "https://github.com/kawaz/pkf-tasks"
+/// pkf-tasks repo spec — bump-semver の `vcs:latest-tag(<arg>)` に渡す。
+/// `owner/repo` 短縮形か フル URL (`https://github.com/kawaz/pkf-tasks`) 可。
+remoteRepoSpec: String = "kawaz/pkf-tasks"
 
 /// tag 命名 prefix (DR-0003 の `pkf-tasks@<version>` 形式)。
 tagPrefix: String = "pkf-tasks@"
 
 check: Taskfile.Task = new Taskfile.Task {
   name = "migrate:check-pkf-tasks-current"
-  description = "fail if \(taskfilePath) pkf-tasks import is behind latest released tag"
+  description = "fail if \(taskfilePath) \(tagPrefix) import is behind latest released version"
   cache = false
-  cmd =
-    """
+  cmd = """
     set -euo pipefail
-    latest=$(git ls-remote --tags \(repoUrl) 2>/dev/null \\
-      | awk '{print $2}' \\
-      | grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+$' \\
-      | sort -V \\
-      | tail -1)
-    if [ -z "$latest" ]; then
-      echo "ERROR: failed to fetch latest tag from \(repoUrl)" >&2
+    if ! command -v bump-semver >/dev/null 2>&1; then
+      echo 'ERROR: bump-semver not installed. SemVer comparison fallback is not implemented.' >&2
+      echo '       Install: brew install kawaz/tap/bump-semver' >&2
       exit 1
     fi
-    if grep -q "$latest" \(taskfilePath); then
+    latest=$(bump-semver get 'vcs:latest-tag(\(remoteRepoSpec))')
+    current=$(grep -oE '\(tagPrefix)[0-9]+\\.[0-9]+\\.[0-9]+' \(taskfilePath) | head -1 | sed 's|^\(tagPrefix)||')
+    if [ -z "$current" ]; then
+      echo "ERROR: failed to detect current \(tagPrefix) version in \(taskfilePath)" >&2
+      exit 1
+    fi
+    if bump-semver compare ge "$current" "$latest" --no-hint; then
       exit 0
     fi
-    echo "ERROR: \(taskfilePath) pkf-tasks import is behind. Latest: $latest" >&2
+    echo "ERROR: \(taskfilePath) pkf-tasks import is behind. Current: $current, Latest: $latest" >&2
     echo "       run: pkf run migrate:update-pkf-tasks" >&2
     exit 1
     """
