@@ -30,7 +30,8 @@ check: Taskfile.Task = new Taskfile.Task {
   name = "migrate:check-pkf-tasks-current"
   description = "fail if \(taskfilePath) \(tagPrefix) import is behind latest released version"
   cache = false
-  cmd = """
+  cmd =
+    """
     set -euo pipefail
     if ! command -v bump-semver >/dev/null 2>&1; then
       echo 'ERROR: bump-semver not installed. SemVer comparison fallback is not implemented.' >&2

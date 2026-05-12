@@ -22,7 +22,8 @@ update: Taskfile.Task = new Taskfile.Task {
   name = "migrate:update-pkf-tasks"
   description = "update \(tagPrefix) import in \(taskfilePath) to latest released version"
   cache = false
-  cmd = """
+  cmd =
+    """
     set -euo pipefail
     if ! command -v bump-semver >/dev/null 2>&1; then
       echo 'ERROR: bump-semver not installed' >&2
