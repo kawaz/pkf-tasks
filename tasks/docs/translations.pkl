@@ -22,62 +22,63 @@ import "@pkfire/Taskfile.pkl"
 local defaultPairs: Listing<String> = new {}
 
 /// 共通の bash function 群 (file_ts / discover_sources)
-local sharedHelpers: String = #"""
-file_ts() {
-  if jj root >/dev/null 2>&1; then
-    jj log --no-graph -T 'committer.timestamp().format("%s")' \
-      -r "latest(::@ & files('$1'))" 2>/dev/null || echo 0
-  elif git rev-parse --git-dir >/dev/null 2>&1; then
-    git log -1 --format=%ct -- "$1" 2>/dev/null || echo 0
-  else
-    echo 0
-  fi
-}
+local sharedHelpers: String =
+  #"""
+  file_ts() {
+    if jj root >/dev/null 2>&1; then
+      jj log --no-graph -T 'committer.timestamp().format("%s")' \
+        -r "latest(::@ & files('$1'))" 2>/dev/null || echo 0
+    elif git rev-parse --git-dir >/dev/null 2>&1; then
+      git log -1 --format=%ct -- "$1" 2>/dev/null || echo 0
+    else
+      echo 0
+    fi
+  }
 
-# 正本リストを決定。引数 $@ があれば glob 展開、無ければ explicit_pairs を使用、
-# 両方なければ cwd 配下の *-ja.md を auto-discover。
-collect_sources() {
-  shopt -s globstar nullglob
-  local sources=()
-  if [ $# -gt 0 ]; then
-    for arg in "$@"; do
-      for f in $arg; do
-        [ -f "$f" ] && sources+=("$f")
+  # 正本リストを決定。引数 $@ があれば glob 展開、無ければ explicit_pairs を使用、
+  # 両方なければ cwd 配下の *-ja.md を auto-discover。
+  collect_sources() {
+    shopt -s globstar nullglob
+    local sources=()
+    if [ $# -gt 0 ]; then
+      for arg in "$@"; do
+        for f in $arg; do
+          [ -f "$f" ] && sources+=("$f")
+        done
       done
-    done
-  elif [ -n "$explicit_pairs" ]; then
-    for p in $explicit_pairs; do
-      [ -f "$p" ] && sources+=("$p")
-    done
-  else
-    while IFS= read -r f; do
-      sources+=("${f#./}")
-    done < <(find . -name '*-ja.md' \
-      -not -path './.jj/*' \
-      -not -path './.git/*' \
-      -not -path '*/.out/*' \
-      -not -path '*/node_modules/*' 2>/dev/null \
-      | sort -u)
-  fi
-  printf '%s\n' "${sources[@]}"
-}
+    elif [ -n "$explicit_pairs" ]; then
+      for p in $explicit_pairs; do
+        [ -f "$p" ] && sources+=("$p")
+      done
+    else
+      while IFS= read -r f; do
+        sources+=("${f#./}")
+      done < <(find . -name '*-ja.md' \
+        -not -path './.jj/*' \
+        -not -path './.git/*' \
+        -not -path '*/.out/*' \
+        -not -path '*/node_modules/*' 2>/dev/null \
+        | sort -u)
+    fi
+    printf '%s\n' "${sources[@]}"
+  }
 
-# 正本 src に対する近所探索 (translation targets を stdout に列挙、正本自身は除外)
-neighbors_of() {
-  local src="$1"
-  shopt -s nullglob
-  local prefix glob f
-  case "$src" in
-    *-ja.md) prefix="${src%-ja.md}"; glob="${prefix}*.md" ;;
-    *.md)    prefix="${src%.md}";    glob="${prefix}[_.-]*.md" ;;
-    *) return ;;
-  esac
-  for f in $glob; do
-    [ "$f" = "$src" ] && continue
-    [ -f "$f" ] && printf '%s\n' "$f"
-  done
-}
-"""#
+  # 正本 src に対する近所探索 (translation targets を stdout に列挙、正本自身は除外)
+  neighbors_of() {
+    local src="$1"
+    shopt -s nullglob
+    local prefix glob f
+    case "$src" in
+      *-ja.md) prefix="${src%-ja.md}"; glob="${prefix}*.md" ;;
+      *.md)    prefix="${src%.md}";    glob="${prefix}[_.-]*.md" ;;
+      *) return ;;
+    esac
+    for f in $glob; do
+      [ "$f" = "$src" ] && continue
+      [ -f "$f" ] && printf '%s\n' "$f"
+    done
+  }
+  """#
 
 /// commit-lag: VCS commit timestamp 比較。翻訳先 < 正本 (= lag) で失敗。
 function commitLagForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
@@ -87,23 +88,23 @@ function commitLagForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile
   acceptsArgs = true
   cmd =
     "set -euo pipefail\n"
-    + "explicit_pairs='\(pairs.toList().join(" "))'\n"
-    + sharedHelpers
-    + #"""
+      + "explicit_pairs='\(pairs.toList().join(" "))'\n"
+      + sharedHelpers
+      + #"""
 
-    failed=0
-    while IFS= read -r src; do
-      src_ts=$(file_ts "$src")
-      while IFS= read -r tgt; do
-        tgt_ts=$(file_ts "$tgt")
-        if [ "$tgt_ts" -lt "$src_ts" ]; then
-          echo "translation lag: $tgt (ts=$tgt_ts) older than source $src (ts=$src_ts)" >&2
-          failed=1
-        fi
-      done < <(neighbors_of "$src")
-    done < <(collect_sources "$@")
-    exit $failed
-    """#
+      failed=0
+      while IFS= read -r src; do
+        src_ts=$(file_ts "$src")
+        while IFS= read -r tgt; do
+          tgt_ts=$(file_ts "$tgt")
+          if [ "$tgt_ts" -lt "$src_ts" ]; then
+            echo "translation lag: $tgt (ts=$tgt_ts) older than source $src (ts=$src_ts)" >&2
+            failed=1
+          fi
+        done < <(neighbors_of "$src")
+      done < <(collect_sources "$@")
+      exit $failed
+      """#
 }
 
 /// links: 相互リンクの存在チェック (ja ↔ en の 2 言語規約準拠)。
@@ -115,48 +116,48 @@ function linksForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Tas
   acceptsArgs = true
   cmd =
     "set -euo pipefail\n"
-    + "explicit_pairs='\(pairs.toList().join(" "))'\n"
-    + sharedHelpers
-    + #"""
+      + "explicit_pairs='\(pairs.toList().join(" "))'\n"
+      + sharedHelpers
+      + #"""
 
-    failed=0
-    while IFS= read -r src; do
-      # 翻訳先を列挙
-      targets=()
-      while IFS= read -r tgt; do
-        targets+=("$tgt")
-      done < <(neighbors_of "$src")
+      failed=0
+      while IFS= read -r src; do
+        # 翻訳先を列挙
+        targets=()
+        while IFS= read -r tgt; do
+          targets+=("$tgt")
+        done < <(neighbors_of "$src")
 
-      # 2 言語ペア (翻訳先 1 個) の時だけリンク検査
-      if [ ${#targets[@]} -ne 1 ]; then
-        echo "skip link check (multilingual or no target): $src (${#targets[@]} targets)" >&2
-        continue
-      fi
-      tgt="${targets[0]}"
+        # 2 言語ペア (翻訳先 1 個) の時だけリンク検査
+        if [ ${#targets[@]} -ne 1 ]; then
+          echo "skip link check (multilingual or no target): $src (${#targets[@]} targets)" >&2
+          continue
+        fi
+        tgt="${targets[0]}"
 
-      # ja ↔ en 規約: src=*-ja.md の場合、tgt=*.md (en) を期待
-      case "$src" in
-        *-ja.md)
-          ja="$src"; en="$tgt"
-          ;;
-        *)
-          # 正本が en 側 (= src=*.md、tgt=*-ja.md) のケース
-          ja="$tgt"; en="$src"
-          ;;
-      esac
+        # ja ↔ en 規約: src=*-ja.md の場合、tgt=*.md (en) を期待
+        case "$src" in
+          *-ja.md)
+            ja="$src"; en="$tgt"
+            ;;
+          *)
+            # 正本が en 側 (= src=*.md、tgt=*-ja.md) のケース
+            ja="$tgt"; en="$src"
+            ;;
+        esac
 
-      base=$(basename "${ja%-ja.md}")
-      if ! head -5 "$ja" | grep -qF "> [English](./${base}.md) | 日本語"; then
-        echo "link check failed: $ja missing '> [English](./${base}.md) | 日本語'" >&2
-        failed=1
-      fi
-      if ! head -5 "$en" | grep -qF "> English | [日本語](./${base}-ja.md)"; then
-        echo "link check failed: $en missing '> English | [日本語](./${base}-ja.md)'" >&2
-        failed=1
-      fi
-    done < <(collect_sources "$@")
-    exit $failed
-    """#
+        base=$(basename "${ja%-ja.md}")
+        if ! head -5 "$ja" | grep -qF "> [English](./${base}.md) | 日本語"; then
+          echo "link check failed: $ja missing '> [English](./${base}.md) | 日本語'" >&2
+          failed=1
+        fi
+        if ! head -5 "$en" | grep -qF "> English | [日本語](./${base}-ja.md)"; then
+          echo "link check failed: $en missing '> English | [日本語](./${base}-ja.md)'" >&2
+          failed=1
+        fi
+      done < <(collect_sources "$@")
+      exit $failed
+      """#
 }
 
 /// umbrella: commit-lag + links を deps で並列実行。
