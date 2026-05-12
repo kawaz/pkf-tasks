@@ -14,7 +14,7 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
 
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.0#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/all.pkl" as kawaz
 
 // =============================================================================
 // Self-dogfood lint / check (v2.0.0 で library export から外して inline 化)
