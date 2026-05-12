@@ -1,6 +1,18 @@
 # Changelog
 
-All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.16`, not `@0`) until 0.1.0 stabilises the surface.
+All notable changes to `kawaz/pkf-tasks` are recorded here. The package is in **0.0.x unstable phase** — every release may contain breaking interface changes; pin to an exact version (`@0.0.17`, not `@0`) until 0.1.0 stabilises the surface.
+
+## 0.0.17 — 2026-05-12
+
+### Changed
+
+- **`docs:check-translations` の default 検査対象を glob auto-discover に変更**。従来は明示列挙 (`README` / `docs/DESIGN` / `docs/MANUAL` の 3 ペア固定) だったが、`find . -name '*-ja.md'` で全ての `*-ja.md` を自動発見する形に。これにより `tasks/<group>/README-ja.md` のような新規ペアが追加されても **明示更新なしで自動的に検査対象になる**。明示指定したい場合は従来通り `task(new Listing { "README"; ... })` で別 Task を作れる (backward compatible)。
+- 内部で `find` の除外パス: `.jj` / `.git` / `*/.out/*` / `*/node_modules/*`。
+
+### Added
+
+- **各 group ディレクトリに README ペア (`README.md` 英 + `README-ja.md` 日)** を追加。`tasks/vcs/` / `tasks/docs/` / `tasks/lint/` / `tasks/semver/` / `tasks/migrate/` の 5 group すべてに、各 task の詳細 (動作 / 引数 / 利用例 / 設計判断) を載せた group 内 README を配置。GitHub のディレクトリ表示で自動展開される動線が整い、リポトップ README から module 単位の詳細へ簡単に辿れる。
+- リポトップ README を **module list 形式に簡潔化**。catalog テーブルを撤去し、5 module へのリンク + 短い 1 行説明に圧縮。詳細は各 module の README へ。
 
 ## 0.0.16 — 2026-05-12
 

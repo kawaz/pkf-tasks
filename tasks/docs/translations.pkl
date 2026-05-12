@@ -19,20 +19,25 @@ module com.github.kawaz.pkfTasks.docs.translations
 
 import "@pkfire/Taskfile.pkl"
 
-/// デフォルトの翻訳ペア (kawaz docs-structure.md 準拠)。
-/// path-prefix を指定する: `README` → `README.md` / `README-ja.md`、
-/// `docs/DESIGN` → `docs/DESIGN.md` / `docs/DESIGN-ja.md`。
-local defaultPairs: Listing<String> = new {
-  "README"
-  "docs/DESIGN"
-  "docs/MANUAL"
-}
+/// デフォルトは **glob 自動発見** (`find . -name '*-ja.md'`)。利用側で明示
+/// ペア指定したい場合は `task(pairs)` 関数で別 Task を作る (空 Listing を
+/// 渡せば auto-discover と同等)。
+///
+/// auto-discover 経路:
+///   - cwd 配下の `*-ja.md` を全て発見
+///   - `.jj` / `.git` / `.out` / `node_modules` 配下は除外
+///   - suffix `-ja.md` を剥がして prefix リスト化、check_pair に渡す
+///
+/// 明示指定経路:
+///   - `task(new Listing { "README"; "docs/DESIGN"; ... })` で旧仕様互換
+local defaultPairs: Listing<String> = new {}
 
-/// 翻訳チェック Task を生成する。利用側でペアをカスタムしたい場合は
-/// `translations.task` を直接展開せず、この関数で別 Task を作る。
+/// 翻訳チェック Task を生成する。`pairs` が空なら auto-discover、非空なら
+/// 明示指定したペアのみを検査する。
 function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
   name = "docs:check-translations"
-  description = "verify translation pair integrity (links + commit-timestamp order)"
+  description =
+    "verify translation pair integrity (links + commit-timestamp order, glob auto-discover by default)"
   cache = false
   cmd =
     """
@@ -57,8 +62,21 @@ function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
       head -5 "${pair}.md"    | grep -qF "> English | [日本語](./${base}-ja.md)"
       test "$(file_ts "${pair}-ja.md")" -le "$(file_ts "${pair}.md")"
     }
+    explicit_pairs='\(pairs.toList().join(" "))'
+    if [ -n "$explicit_pairs" ]; then
+      pairs_to_check=$explicit_pairs
+    else
+      # auto-discover: *-ja.md を全て発見、suffix 剥がして prefix リスト化
+      pairs_to_check=$(find . -name "*-ja.md" \\
+          -not -path "./.jj/*" \\
+          -not -path "./.git/*" \\
+          -not -path "*/.out/*" \\
+          -not -path "*/node_modules/*" 2>/dev/null \\
+        | sed 's|^\\./||; s|-ja\\.md$||' \\
+        | sort -u)
+    fi
     failed=0
-    for pair in \(pairs.toList().join(" ")); do
+    for pair in $pairs_to_check; do
       check_pair "$pair" || { echo "translation check FAILED: $pair" >&2; failed=1; }
     done
     exit $failed
@@ -66,8 +84,8 @@ function task(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
 }
 
 /// `tasks { ...translations.allTasks }` で利用側から取り込める
-/// よう、デフォルトペアの Task を 1 個だけ持つ Listing として
-/// export する。
+/// よう、auto-discover (default、`pairs` 空) の Task を 1 個だけ持つ
+/// Listing として export する。
 checkTranslations: Taskfile.Task = task(defaultPairs)
 
 allTasks: Listing<Taskfile.Task> = new {
