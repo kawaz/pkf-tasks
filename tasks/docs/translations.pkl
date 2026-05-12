@@ -1,17 +1,26 @@
 /// 翻訳ペアの整合性チェック。v2.1.0 で 3 task に分割:
 ///
-/// - `docs:check-translation-commit-lag`  — VCS timestamp 比較 (翻訳先 < 正本 = lag、失敗)
-/// - `docs:check-translation-links` — 相互リンクの存在 (ja ↔ en 規約準拠)
-/// - `docs:check-translations`      — 上記 2 つの umbrella (deps で並列実行)
+/// - `docs:check-translation-commit-lag` — VCS commit timestamp 比較 (翻訳先の commit が
+///   正本より古い = lag、失敗)
+/// - `docs:check-translation-links`      — 相互リンクの存在 (ja ↔ en 規約準拠)
+/// - `docs:check-translations`           — 上記 2 つの umbrella (deps で並列実行)。
+///   将来 content-level の同期チェック (AI で意味的 diff 等) を sub task で追加する余地あり
 ///
 /// 正本の指定方法:
 ///   1. CLI 引数 (acceptsArgs): `pkf run docs:check-translation-commit-lag -- '**/*-ja.md'`
+///      (`**` は bash 4+ の `shopt -s globstar` が必要。bash 3.2 では 1 階層 `*` 扱い、
+///      brace expansion `{,*/,*/*/}*-ja.md` 等で代用可)
 ///   2. function `forPairs(pairs)` で固定リスト: `(kawaz.docs.translations).forPairs(...)`
-///   3. 引数なし: cwd 配下の `*-ja.md` を auto-discover (defaultPairs 空 = フォールバック)
+///   3. 引数なし: cwd 配下の `*-ja.md` を auto-discover
+///      (`.jj/` `.git/` `.out/` `node_modules/` は除外)
 ///
-/// 正本パターン:
-///   - `*-ja.md` (kawaz 慣習) → 同 basename の `*.md` 群を近所探索 (e.g., `README.md`, `README-en.md`)
-///   - `*.md` (en 原本など) → 同 basename の `*[_.-]*.md` 群 (e.g., `README-ja.md`, `README-zh.md`)
+/// 正本パターン (近所探索):
+///   - `*-ja.md` (kawaz 慣習) → 翻訳先は `${prefix}.md` 単体 (en 直接)
+///     `data-layout-ja.md` から `data-layout-history.md` 等を誤巻き込みしないよう、
+///     ja 正本のときは多言語拡張せず en の 1 対 1 に固定する。
+///   - `*.md` (en 原本など) → `${prefix}-??.md` / `${prefix}-???.md` (2-3 文字の言語 code、
+///     `README-ja.md` / `README-zh.md` / `README-jpn.md` 等)。長い basename 連結は誤マッチを
+///     避けるため数字長で絞る。
 ///   正本自身は翻訳先リストから除外、残りが check 対象。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.docs.translations
@@ -21,27 +30,35 @@ import "@pkfire/Taskfile.pkl"
 /// auto-discover 用の空 Listing (= 引数なし + Listing 空 → cwd 配下 `*-ja.md` 全部)
 local defaultPairs: Listing<String> = new {}
 
-/// 共通の bash function 群 (file_ts / discover_sources)
+/// Pkl 文字列を bash single-quote literal に安全に展開するヘルパ。
+/// `'` を含む場合は `'\''` で escape ('閉じ → \' → '再オープン)。
+local function shellQuote(s: String): String = s.replaceAll("'", "'\\''")
+
+/// 共通の bash function 群 (file_ts / collect_sources / neighbors_of)
 local sharedHelpers: String =
   #"""
   file_ts() {
+    local out=""
     if jj root >/dev/null 2>&1; then
-      jj log --no-graph -T 'committer.timestamp().format("%s")' \
-        -r "latest(::@ & files('$1'))" 2>/dev/null || echo 0
+      out=$(jj log --no-graph -T 'committer.timestamp().format("%s")' \
+        -r "latest(::@ & files(\"$1\"))" 2>/dev/null || true)
     elif git rev-parse --git-dir >/dev/null 2>&1; then
-      git log -1 --format=%ct -- "$1" 2>/dev/null || echo 0
-    else
-      echo 0
+      out=$(git log -1 --format=%ct -- "$1" 2>/dev/null || true)
     fi
+    # untracked / 未取得時は空文字が返るので 0 に正規化 (lag 比較が exit 2 にならないように)
+    echo "${out:-0}"
   }
 
-  # 正本リストを決定。引数 $@ があれば glob 展開、無ければ explicit_pairs を使用、
+  # 正本リストを決定。引数 $@ があれば plain path として展開、無ければ explicit_pairs を使用、
   # 両方なければ cwd 配下の *-ja.md を auto-discover。
+  # $@ の各要素はあらかじめ shell glob (e.g., *-ja.md, **/*-ja.md) が展開済みの前提
+  # (= 利用者の shell で展開、cmd 内では plain path として扱う)。
   collect_sources() {
-    shopt -s globstar nullglob
+    shopt -s nullglob 2>/dev/null || true
     local sources=()
     if [ $# -gt 0 ]; then
       for arg in "$@"; do
+        # glob 文字を含む場合は cmd 内 bash で再展開 (bash 4+ なら ** も効く)
         for f in $arg; do
           [ -f "$f" ] && sources+=("$f")
         done
@@ -60,42 +77,50 @@ local sharedHelpers: String =
         -not -path '*/node_modules/*' 2>/dev/null \
         | sort -u)
     fi
-    printf '%s\n' "${sources[@]}"
+    printf '%s\n' "${sources[@]+"${sources[@]}"}"
   }
 
   # 正本 src に対する近所探索 (translation targets を stdout に列挙、正本自身は除外)
+  # ja 正本: 1 対 1 で en (${prefix}.md) のみ。data-layout-history 等の誤巻き込み回避。
+  # en 正本: 2-3 文字 lang code suffix の他言語を列挙 (multilingual 対応)。
   neighbors_of() {
     local src="$1"
-    shopt -s nullglob
-    local prefix glob f
+    shopt -s nullglob 2>/dev/null || true
+    local prefix f
     case "$src" in
-      *-ja.md) prefix="${src%-ja.md}"; glob="${prefix}*.md" ;;
-      *.md)    prefix="${src%.md}";    glob="${prefix}[_.-]*.md" ;;
-      *) return ;;
+      *-ja.md)
+        prefix="${src%-ja.md}"
+        f="${prefix}.md"
+        [ -f "$f" ] && [ ! -L "$f" ] && [ "$f" != "$src" ] && printf '%s\n' "$f"
+        ;;
+      *.md)
+        prefix="${src%.md}"
+        for f in "${prefix}"-??.md "${prefix}"-???.md; do
+          [ -f "$f" ] && [ ! -L "$f" ] && [ "$f" != "$src" ] && printf '%s\n' "$f"
+        done
+        ;;
     esac
-    for f in $glob; do
-      [ "$f" = "$src" ] && continue
-      [ -f "$f" ] && printf '%s\n' "$f"
-    done
   }
   """#
 
 /// commit-lag: VCS commit timestamp 比較。翻訳先 < 正本 (= lag) で失敗。
 function commitLagForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
   name = "docs:check-translation-commit-lag"
-  description = "fail if any translation's commit is older than its source's (= commit lag)"
+  description = "fail if any translation is older than its source (VCS commit timestamp)"
   cache = false
   acceptsArgs = true
   cmd =
     "set -euo pipefail\n"
-      + "explicit_pairs='\(pairs.toList().join(" "))'\n"
+      + "explicit_pairs='\(pairs.toList().map((s) -> shellQuote(s)).join(" "))'\n"
       + sharedHelpers
       + #"""
 
       failed=0
       while IFS= read -r src; do
+        [ -z "$src" ] && continue   # 空配列フォールバックの空行を skip
         src_ts=$(file_ts "$src")
         while IFS= read -r tgt; do
+          [ -z "$tgt" ] && continue
           tgt_ts=$(file_ts "$tgt")
           if [ "$tgt_ts" -lt "$src_ts" ]; then
             echo "translation lag: $tgt (ts=$tgt_ts) older than source $src (ts=$src_ts)" >&2
@@ -108,7 +133,8 @@ function commitLagForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile
 }
 
 /// links: 相互リンクの存在チェック (ja ↔ en の 2 言語規約準拠)。
-/// 多言語 (3+ 翻訳先) の場合は規約未拡張のため skip ログを出して pass。
+/// 翻訳先が 0 個または 2+ 個の場合は規約適用外として skip ログ + pass。
+/// (0 = 翻訳先未作成、2+ = 多言語、いずれも本 task の責務外)
 function linksForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
   name = "docs:check-translation-links"
   description = "bilingual cross-link integrity (ja <-> en convention)"
@@ -116,34 +142,30 @@ function linksForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Tas
   acceptsArgs = true
   cmd =
     "set -euo pipefail\n"
-      + "explicit_pairs='\(pairs.toList().join(" "))'\n"
+      + "explicit_pairs='\(pairs.toList().map((s) -> shellQuote(s)).join(" "))'\n"
       + sharedHelpers
       + #"""
 
       failed=0
       while IFS= read -r src; do
-        # 翻訳先を列挙
+        [ -z "$src" ] && continue
         targets=()
         while IFS= read -r tgt; do
+          [ -z "$tgt" ] && continue
           targets+=("$tgt")
         done < <(neighbors_of "$src")
 
         # 2 言語ペア (翻訳先 1 個) の時だけリンク検査
         if [ ${#targets[@]} -ne 1 ]; then
-          echo "skip link check (multilingual or no target): $src (${#targets[@]} targets)" >&2
+          echo "skip link check ($src: ${#targets[@]} targets, expected 1 for bilingual)" >&2
           continue
         fi
         tgt="${targets[0]}"
 
         # ja ↔ en 規約: src=*-ja.md の場合、tgt=*.md (en) を期待
         case "$src" in
-          *-ja.md)
-            ja="$src"; en="$tgt"
-            ;;
-          *)
-            # 正本が en 側 (= src=*.md、tgt=*-ja.md) のケース
-            ja="$tgt"; en="$src"
-            ;;
+          *-ja.md) ja="$src"; en="$tgt" ;;
+          *)       ja="$tgt"; en="$src" ;;
         esac
 
         base=$(basename "${ja%-ja.md}")
@@ -161,11 +183,15 @@ function linksForPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Tas
 }
 
 /// umbrella: commit-lag + links を deps で並列実行。
+///
+/// 注意: pkfire 0.6.0 の orchestrator は umbrella の CLI args を deps に伝播しません。
+/// `pkf run docs:check-translations -- '<glob>'` で glob を渡したい場合は、sub task
+/// (`docs:check-translation-commit-lag` / `docs:check-translation-links`) を個別に呼ぶか、
+/// 利用側 Taskfile.pkl で `forPairs(...)` を使って Pkl レベルで pairs を固定化する。
 function forPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
   name = "docs:check-translations"
   description = "translation commit-lag + links (umbrella)"
   cache = false
-  acceptsArgs = true
   deps {
     commitLagForPairs(pairs)
     linksForPairs(pairs)

@@ -2,9 +2,36 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 2.1.1 — 2026-05-12
+
+Patch release. Bug fixes around the v2.1.0 `docs:check-translations` overhaul, plus documentation tightening.
+
+### Bug fixes
+
+- **`neighbors_of` glob over-match** (`docs/translations.pkl`): the previous `${prefix}*.md` glob for `*-ja.md` sources greedily picked up unrelated siblings (e.g. `data-layout-ja.md` matched `data-layout-history.md` / `data-layout-history-ja.md`). Now:
+  - `*-ja.md` source → discovers `<base>.md` only (strict 1:1, en target)
+  - `*.md` source → discovers `<base>-??.md` / `<base>-???.md` (2-3 letter language codes only)
+  - This means ja-original projects no longer get false-positive lag detection across unrelated files.
+- **`file_ts` returns empty string for untracked files**: `git log -1 --format=%ct -- <untracked>` exits 0 with empty stdout, so the previous `|| echo 0` fallback never fired. The empty string then caused `[ "" -lt N ]` to exit 2 silently inside `if` (lag was silently missed). Fixed by normalising to `0` after capturing.
+- **bash 3.2 abort on `shopt -s globstar`**: macOS default `/bin/bash` (3.2) lacks `globstar` and aborted the script under `set -e`. Changed to `shopt -s globstar 2>/dev/null || true` so 3.2 continues without `**` recursion (users on 3.2 can use brace expansion like `{,*/,*/*/}*-ja.md` for similar recursion).
+- **Pkl interpolation of single-quoted pairs**: ja/en file paths containing `'` (e.g. `Architect's Notes-ja.md`) broke the rendered bash literal `explicit_pairs='...'`. Fixed by escaping `'` to `'\''` in the Pkl helper before interpolation.
+- **Symlink reject** in neighbor discovery: `[ -f ]` followed symlinks. Added `[ ! -L ]` so symlinks pointing outside the repo (e.g. accidental `README-ja.md -> /etc/passwd`) are no longer treated as translation targets.
+
+### Documentation
+
+- README ペア: clarified that the umbrella `docs:check-translations` does **not** forward CLI args to deps (pkfire 0.6.0 orchestrator limitation) — use the sub-checks directly for `pkf run ... -- <glob>` usage.
+- README ペア: documented the new neighbor-discovery rules (1:1 for ja-source, 2-3 letter language codes for en-source) and the exclusion list for auto-discover (`.jj/`, `.git/`, `.out/`, `node_modules/`).
+- README ペア: documented bash 4+ requirement for `**` glob, with `{,*/,*/*/}*-ja.md` brace-expansion workaround for bash 3.2.
+- `tasks/docs/README.md` updated to reflect the v2.1.0 sub-task split (was stale from v1.0.0).
+- `docs/issue/2026-05-12-link-pattern-injection.md` records the future enhancement to make link patterns injectable for non-kawaz conventions.
+
+### Migration notes
+
+No action required for v2.1.0 consumers. Behaviour changes are bug fixes (correct behaviour, not breaking).
+
 ## 2.1.0 — 2026-05-12
 
-Non-breaking minor release. The `docs:check-translations` task gains CLI argument support and is split into two narrower checks; task descriptions across the library are tightened to match `justfile`-style brevity.
+Non-breaking minor release. The `docs:check-translations` task gains CLI argument support and is split into two narrower checks, factory function `task(pairs)` is renamed to `forPairs(pairs)` (old name kept as `@Deprecated` alias), and task descriptions across the library are tightened to match `justfile`-style brevity.
 
 ### `docs:check-translations` overhaul
 
@@ -18,12 +45,10 @@ Non-breaking minor release. The `docs:check-translations` task gains CLI argumen
   $ pkf run docs:check-translations -- '**/*-ja.md'
   $ pkf run docs:check-translation-commit-lag -- 'docs/**/*-ja.md'   # sync だけ
   ```
-- **Neighbor-discovery model**: for each source file, scan adjacent files with matching basenames:
-  - source `README-ja.md` → look for `README*.md` (e.g. `README.md`, `README-en.md`, `README-zh.md`); excluding the source itself, the rest are translation targets
-  - source `README.md` → look for `README[_.-]*.md` (e.g. `README-ja.md`, `README-zh.md`)
+- **Neighbor-discovery model**: for each source file, *neighbors* (files with matching basename in the same directory) are auto-discovered as translation targets. The source itself is excluded. (See v2.1.1 for the corrected glob rules; the v2.1.0 release had an over-matching `${prefix}*.md` rule.)
 - **Multilingual-ready** (sync): a single source can have N translation targets; each is compared by VCS timestamp
 - **Link check stays bilingual** (1 source ↔ 1 target only); multilingual sources skip link verification with a log message and pass, since the ja ↔ en link convention hasn't been generalised
-- Auto-discover (no args + empty `pairs` Listing) remains as the default fallback: every `*-ja.md` under cwd is treated as a source
+- Auto-discover (no args + empty `pairs` Listing) remains as the default fallback: every `*-ja.md` under cwd is treated as a source (excludes `.jj/`, `.git/`, `.out/`, `node_modules/`)
 
 ### `task(pairs)` renamed to `forPairs(pairs)`
 

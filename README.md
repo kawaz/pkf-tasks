@@ -21,7 +21,7 @@ Each module directory has its own README with task details, parameters, and usag
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.0#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/all.pkl" as kawaz
 
 tasks {
   ...kawaz.vcs.allTasks
@@ -36,8 +36,8 @@ tasks {
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.0#/vcs.pkl" as vcs
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.0#/docs.pkl" as docs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/vcs.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/docs.pkl" as docs
 
 tasks {
   ...vcs.allTasks
@@ -49,24 +49,32 @@ Inspect with `pkf list` / `pkf list -v` / `pkf graph --format mermaid`. Latest v
 
 ### Using `docs:check-translations` (v2.1.0+)
 
-With `acceptsArgs = true`, source files / globs can be passed via CLI. For `-ja.md` style sources, neighboring `*.md` files are discovered as translation targets:
+With `acceptsArgs = true`, source files / globs can be passed via CLI. The sub-checks (`commit-lag` / `links`) each accept the same arguments. The umbrella `docs:check-translations` does **not** forward args to its deps (pkfire orchestrator limitation in 0.6.0), so use the sub-checks directly when passing CLI args:
 
 ```bash
-# auto-discover (every *-ja.md under cwd as source)
+# auto-discover (every *-ja.md under cwd; excludes .jj/ .git/ .out/ node_modules/)
 pkf run docs:check-translations
 
 # explicit list (kawaz convention)
-pkf run docs:check-translations -- README-ja.md docs/DESIGN-ja.md docs/MANUAL-ja.md
+pkf run docs:check-translation-commit-lag -- README-ja.md docs/DESIGN-ja.md docs/MANUAL-ja.md
 
-# wide glob
-pkf run docs:check-translations -- '**/*-ja.md'
-
-# individual sub-checks
-pkf run docs:check-translation-commit-lag -- '**/*-ja.md'   # only the commit-lag sub-check
-pkf run docs:check-translation-links -- README-ja.md         # only the links sub-check
+# wide glob (bash 4+ for **; bash 3.2 expands ** as * — use brace expansion {,*/,*/*/}*-ja.md instead)
+pkf run docs:check-translation-commit-lag -- '**/*-ja.md'
+pkf run docs:check-translation-links -- '**/*-ja.md'
 ```
 
-When the source is `*.md` (e.g. English-original projects), `*[_.-]*.md` (`-ja.md` / `-zh.md` etc.) are scanned, supporting multilingual setups too. The link check is bilingual-only (sources with 3+ translation targets log a skip and pass).
+#### Neighbor discovery (source → translation targets)
+
+For each source file, neighboring files with matching basename are discovered as translation targets (the source itself is excluded):
+
+| source pattern | targets discovered | use case |
+|---|---|---|
+| `<base>-ja.md` (kawaz convention) | `<base>.md` only (1:1, en) | ja-original projects |
+| `<base>.md` (e.g. English-original) | `<base>-??.md` / `<base>-???.md` (2-3 letter language codes: `-ja.md`, `-zh.md`, `-jpn.md`, etc.) | en-original / multilingual |
+
+The `-ja.md` source uses 1:1 discovery to avoid false positives from siblings like `data-layout-history-ja.md` being treated as a translation of `data-layout-ja.md`. The `*.md` source restricts to short language-code suffixes for the same reason.
+
+The link check only validates the bilingual ja ↔ en convention (1 source ↔ 1 target). Sources with 0 targets (no translation yet) or 2+ targets (multilingual) log a skip and pass — the link convention hasn't been generalised for those cases.
 
 ## SemVer stability (2.x)
 
@@ -78,7 +86,7 @@ pkf-tasks follows SemVer 2.0.0 from v1.0.0 onward. The **public API contract** (
 
 Internal implementation files (`vcs/iface.pkl`, `vcs/jj.pkl`, `vcs/git.pkl`, `vcs/auto.pkl`, `docs/translations.pkl`, `semver/check-bumped.pkl`, `migrate/check-current.pkl`, etc.) are **not** part of the public contract — they may move or be renamed in any minor/patch release. Always import via the flat group entries.
 
-Pin to `pkf-tasks@2` for major-only floating, or to an exact version (e.g. `pkf-tasks@2.1.0`) for full reproducibility. The `migrate:check-*` gates keep the pin up to date regardless.
+Pin to `pkf-tasks@2` for major-only floating, or to an exact version (e.g. `pkf-tasks@2.1.1`) for full reproducibility. The `migrate:check-*` gates keep the pin up to date regardless.
 
 Pkfire 0.6.0+ supports **glob targets** on the CLI, composing well with the `<group>:<action>` task naming:
 

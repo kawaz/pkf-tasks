@@ -21,7 +21,7 @@
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.0#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/all.pkl" as kawaz
 
 tasks {
   ...kawaz.vcs.allTasks
@@ -36,8 +36,8 @@ tasks {
 
 ```pkl
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.0#/vcs.pkl" as vcs
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.0#/docs.pkl" as docs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/vcs.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.1.1#/docs.pkl" as docs
 
 tasks {
   ...vcs.allTasks
@@ -49,24 +49,32 @@ tasks {
 
 ### `docs:check-translations` の使い方 (v2.1.0+)
 
-`acceptsArgs = true` で正本リスト / glob を CLI で渡せる。`-ja.md` 形式の正本に対しては近所の `*.md` を翻訳先として近所探索する:
+`acceptsArgs = true` で正本リスト / glob を CLI で渡せる。サブチェック (`commit-lag` / `links`) はそれぞれ独立に同じ引数を受け取る。umbrella の `docs:check-translations` は CLI args を deps に伝播しない (pkfire 0.6.0 の orchestrator 制約)。CLI で glob を渡したい時はサブチェックを直接呼ぶ:
 
 ```bash
-# auto-discover (cwd 配下の *-ja.md を全て正本扱い)
+# auto-discover (cwd 配下の *-ja.md を全て正本扱い、.jj/ .git/ .out/ node_modules/ は除外)
 pkf run docs:check-translations
 
 # 明示リスト (kawaz の慣習通り)
-pkf run docs:check-translations -- README-ja.md docs/DESIGN-ja.md docs/MANUAL-ja.md
+pkf run docs:check-translation-commit-lag -- README-ja.md docs/DESIGN-ja.md docs/MANUAL-ja.md
 
-# 雑に全部
-pkf run docs:check-translations -- '**/*-ja.md'
-
-# 個別 check (sub task)
-pkf run docs:check-translation-commit-lag -- '**/*-ja.md'   # commit-lag のみ
-pkf run docs:check-translation-links -- README-ja.md         # links のみ
+# 雑に全部 (** は bash 4+、bash 3.2 では 1 階層のみ — brace expansion {,*/,*/*/}*-ja.md で代用可)
+pkf run docs:check-translation-commit-lag -- '**/*-ja.md'
+pkf run docs:check-translation-links -- '**/*-ja.md'
 ```
 
-正本が `*.md` (en 原本など) の場合は `*[_.-]*.md` (`-ja.md` / `-zh.md` 等) を近所探索する形で多言語にも対応。相互リンクの検査は 2 言語ペアのみ (3+ 翻訳先がある正本は skip ログ + pass)。
+#### 近所探索 (正本 → 翻訳先)
+
+各正本に対して、同 basename のファイルを翻訳先として近所探索 (正本自身は除外):
+
+| 正本パターン | 翻訳先 | 用途 |
+|---|---|---|
+| `<base>-ja.md` (kawaz 慣習) | `<base>.md` 単体 (1:1、en) | ja 原本プロジェクト |
+| `<base>.md` (en 原本など) | `<base>-??.md` / `<base>-???.md` (2-3 文字 language code: `-ja.md`, `-zh.md`, `-jpn.md`, etc.) | en 原本 / 多言語 |
+
+`-ja.md` 正本は **1:1 探索** (en のみ) に固定して、`data-layout-ja.md` と `data-layout-history-ja.md` が同じ翻訳ペアとして誤検知される問題を回避。`*.md` 正本は同様の理由で短い language-code suffix に限定。
+
+相互リンク検査は ja ↔ en の 2 言語規約 (1 正本 ↔ 1 翻訳先) のみ。翻訳先が 0 個 (未対訳) or 2+ 個 (多言語) の場合は skip ログ + pass — リンク規約はそれらのケースには拡張されていない (将来課題、`docs/issue/2026-05-12-link-pattern-injection.md` 参照)。
 
 ## SemVer 安定性 (2.x)
 
@@ -78,7 +86,7 @@ v1.0.0 以降は SemVer 2.0.0 に従う。2.x 系列の間は破壊的変更な�
 
 内部実装ファイル (`vcs/iface.pkl` / `vcs/jj.pkl` / `vcs/git.pkl` / `vcs/auto.pkl` / `docs/translations.pkl` / `semver/check-bumped.pkl` / `migrate/check-current.pkl` 等) は public contract に **含まない** — minor / patch でいつでも改名・移動し得る。利用側は必ず flat な group entry 経由で import すること。
 
-major 浮動が許容できるなら `pkf-tasks@2` で pin、完全再現したいなら exact pin (例: `pkf-tasks@2.1.0`)。どちらのケースでも `migrate:check-*` gate が pin の鮮度を保つ。
+major 浮動が許容できるなら `pkf-tasks@2` で pin、完全再現したいなら exact pin (例: `pkf-tasks@2.1.1`)。どちらのケースでも `migrate:check-*` gate が pin の鮮度を保つ。
 
 pkfire 0.6.0+ では CLI で **glob target** が使え、`<group>:<action>` 命名と相性が良い:
 
