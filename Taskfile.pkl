@@ -19,7 +19,7 @@
 @ModuleInfo { minPklVersion = "0.31.0" }
 amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
 
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.16#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@0.0.17#/all.pkl" as kawaz
 
 // =============================================================================
 // CI 内部 task: smoke eval + package build
