@@ -35,7 +35,7 @@ local lintPkl: Task = new {
   cmd =
     """
     set -euo pipefail
-    pkl format -w .
+    pkl format -w . >/dev/null
     """
 }
 
@@ -119,7 +119,7 @@ local ci: Task = new {
     packageBuild
     kawaz.docs.checkTranslations
   }
-  cmd = "echo ci ok"
+  cmd = ":" // umbrella、stdout を汚さない (bash noop)
 }
 
 local default: Task = new {

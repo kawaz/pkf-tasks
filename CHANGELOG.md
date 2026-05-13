@@ -2,6 +2,22 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 2.2.2 — 2026-05-13
+
+Patch release. Fixes a stdout-pollution bug when consumers use `pkf run -- args` with a `default` task that forwards args to a binary.
+
+### Bug fix: umbrella task `cmd = "echo X ok"` polluted stdout
+
+The `forPairs` umbrella in `docs/translations.pkl` had `cmd = "echo translation check ok"`. When consumers wire `kawaz.docs.checkTranslations` into the deps tree of a `default` task that runs `./bin/<tool> "$@"`, the umbrella's `echo` output mixed into stdout, making `pkf run -- --version 2>/dev/null` return both `translation check ok` and the tool's actual version output.
+
+Fixed by changing the umbrella `cmd` to `:` (bash no-op). Same fix applied to pkf-tasks own dogfood `Taskfile.pkl` (`ci` umbrella) and the `lint:pkl` task (`pkl format -w` was also writing modified file names to stdout — now redirected to `/dev/null`).
+
+Note for consumers: the same stdout-pollution can happen in your own `lint` / `ci` umbrella tasks if you write `cmd = "echo lint ok"`. Use `cmd = ":"` instead. For `gofmt -w` / `pkl format -w` etc., append `>/dev/null` to suppress the modified file list output.
+
+### Note on version skip
+
+v2.2.1 was consumed by URI resolution experiments (see `docs/journal/2026-05-13-pkg-proxy-uri-resolution.md`). The first production patch after v2.2.0 is therefore v2.2.2.
+
 ## 2.2.0 — 2026-05-13
 
 Minor release adopting pkfire 0.7.0. Bumps the library's pkfire dependency from 0.6.0 to 0.7.0, and starts using the new `visibility` field on internal building-block tasks.

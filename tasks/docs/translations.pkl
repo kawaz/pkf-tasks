@@ -196,7 +196,7 @@ function forPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
     commitLagForPairs(pairs)
     linksForPairs(pairs)
   }
-  cmd = "echo translation check ok"
+  cmd = ":" // umbrella、stdout を汚さない (bash noop)
 }
 
 /// @deprecated v3.0 で削除予定。代わりに `forPairs(...)` を使う。
