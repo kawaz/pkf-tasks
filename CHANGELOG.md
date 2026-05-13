@@ -2,6 +2,45 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 2.3.0 — 2026-05-14
+
+Minor release adopting pkfire 0.10.0. Bumps the library's pkfire dependency from 0.7.0 to 0.10.0, picking up the additive feature set that pkfire shipped on 2026-05-13 (0.8.0 / 0.9.0 / 0.10.0).
+
+### Pkfire 0.10.0 adoption
+
+- `tasks/PklProject` dependency bumped: `pkfire@0.7.0` → `pkfire@0.10.0`. Pkfire schema between 0.7 and 0.10 stays additive — existing Taskfiles continue to work without changes; new features are opt-in via amends URI.
+- The library's own task modules (`vcs/*`, `docs/*`, `semver/*`, `migrate/*`) are unchanged; consumers see no behaviour change. The bump exists so consumers who amend `pkfire@0.10.0` can interoperate with `pkf-tasks@2.3` without hitting `Module version conflict` between their Taskfile's Task type and the one returned by this library.
+
+### Pkfire 0.7 → 0.10 highlights (consumer reference)
+
+To opt into the new pkfire features in your own Taskfile, amend `pkfire@0.10.0`:
+
+```pkl
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0#/Taskfile.pkl"
+```
+
+Headline additions (see pkfire release notes for full list):
+
+- **0.8.0** — `Task.cmd` is now optional for deps-only umbrella tasks (no more `cmd = ":"`); `Task.shellFlags` injects strict bash flags or selects polyglot runtimes (Node/Ruby); `Task.quiet` suppresses per-task diagnostic lines.
+- **0.9.0** — `pkf explain --diff OLD_TASKFILE <task>` reports which component of an action key changed; `pkf lint --json` / `--fix`, `pkf list --long`, `pkf doctor` (+ `--json` / `--fix --dry-run`) for setup diagnostics; `examples/diagnostics` cookbook entry.
+- **0.10.0** — `pkf affected --files <path>` simulates changed files without git; `workflowTests { ... }` lets a Taskfile *declare* expected affected-task sets in Pkl, validated by `pkf affected --check`; `pkf list --json` / `pkf graph --json` for machine-readable introspection; `pkf run --explain-cache <task>` walks per-task cache decisions; `examples/split-import` shows root-Taskfile + `tasks/*.pkl` fragments with cross-file typed deps.
+
+### Migration notes
+
+No code changes required for existing consumers — same `kawaz.vcs.*`, `kawaz.docs.*`, `kawaz.semver.*`, `kawaz.migrate.*` API surface. Just bump the version pin if you want pkfire 0.10.0 features available in your amends URI without dependency conflicts:
+
+```pkl
+// before
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/all.pkl" as kawaz
+
+// after
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.3.0#/all.pkl" as kawaz
+```
+
+### Note on the library's own `Taskfile.pkl`
+
+This repo's dogfood `Taskfile.pkl` still amends `pkfire@0.7.0` and imports `pkf-tasks@2.2.2` at the moment of cutting v2.3.0 — self-import of v2.3.0 cannot exist until the release is published. A follow-up commit after this release will upgrade the dogfood Taskfile to `pkfire@0.10.0` + `pkf-tasks@2.3.0`.
+
 ## 2.2.2 — 2026-05-13
 
 Patch release. Fixes a stdout-pollution bug when consumers use `pkf run -- args` with a `default` task that forwards args to a binary.

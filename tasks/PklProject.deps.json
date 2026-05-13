@@ -3,9 +3,9 @@
   "resolvedDependencies": {
     "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0": {
       "type": "remote",
-      "uri": "projectpackage://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.7.0",
+      "uri": "projectpackage://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0",
       "checksums": {
-        "sha256": "918b19b29a1c77d592bed1a62b9ebd4985355d2e5e23a2bae61693a247a42bdf"
+        "sha256": "79e02dff8d9ee2e9b93e8fd2cf146948368a839a541c65c495f56ba161f1d504"
       }
     }
   }
