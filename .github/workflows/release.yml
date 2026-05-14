@@ -7,6 +7,12 @@ on:
       - "tasks/PklProject"
   workflow_dispatch: # 手動 trigger (initial release や paths 漏れ救済用)
 
+# 同一 ref への並行 release を直列化。既走中の run は kill せず待たせる
+# (途中で kill すると tag だけ残る等の不整合パスを避けるため)。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -154,25 +160,41 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
         run: |
+          set -euo pipefail
           # Tag 体系:
           #   - PRIMARY (= GH Release が bind するもの): pkf-tasks@<version>
-          #     これは Pkl package proxy (pkg.pkl-lang.org) が GitHub
-          #     Releases から asset を fetch する際の URL 規約上必須な
-          #     形式。「<package-name>@<version>」が Pkl エコシステムの
-          #     要求であり、kawaz としては設計上イリーガルなケース
-          #     (Pkl 都合で仕方なく付けている)。
+          #     Pkl package proxy (pkg.pkl-lang.org) が GitHub Releases から
+          #     asset を fetch する URL 規約上必須。「<package-name>@<version>」
+          #     形式は Pkl エコシステムの要求で、kawaz としては設計上イリーガル
+          #     なケース (Pkl 都合で仕方なく付けている)。
           #   - PLAIN (= 慣習的 SemVer tag、bump-semver の vcs:latest-tag() が
           #     拾う「よくあるバージョンタグ」): v<version>
-          #     こちらが本来の基本形。pkf-tasks@<version> が無い tag-only
-          #     consumer (= Pkl 関係ない外部ツール) はこの plain tag を見る。
+          #     こちらが本来の基本形。
           #
-          # actions/download-artifact@v8 は upload 元の dir 階層を保持せず、
-          # path: 直下に file を展開するため、artifact 内の 4 file は
-          # artifacts/${PKL_TAG} / artifacts/${PKL_TAG}.sha256 / ... に配置される。
+          # 順序が重要: PLAIN tag を先に push してから PRIMARY release を作成する。
+          # 逆順だと「Release 作成成功 → tag push 失敗 (branch protection / 瞬断 /
+          # 既存 tag)」で永続的に GH Release だけ存在する不整合になる。
+          # check-version は PRIMARY release の存在しか見ていないので、それ以降の
+          # re-run でも checkin が skip 判定になり plain tag が永久に補填されない。
+          #
+          # actions/download-artifact@v8 は upload 元の dir 階層を保持せず path: 直下に
+          # file を展開するため、artifact 内の 4 file は artifacts/${PKL_TAG} 等に配置。
           PKL_TAG="pkf-tasks@${VERSION}"
           PLAIN_TAG="v${VERSION}"
 
-          # 1) PRIMARY release: gh release create が pkl tag を自動作成 + Release 作成
+          # 1) PLAIN tag: 同じ commit に v<version> tag を annotated tag として
+          #    作成 + push。既存 (= 過去の手動補填 / 別 run で push 済) なら skip。
+          if git ls-remote --tags --exit-code origin "$PLAIN_TAG" >/dev/null 2>&1; then
+            echo "::notice::$PLAIN_TAG already exists on origin; skipping plain tag push."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$PLAIN_TAG" "$COMMIT_SHA" -m "Release $PLAIN_TAG"
+            git push origin "$PLAIN_TAG"
+          fi
+
+          # 2) PRIMARY release: gh release create が pkl tag を自動作成 + Release 作成。
+          #    check-version 段階で release 存在チェック済なのでここでは常に新規作成。
           gh release create "$PKL_TAG" \
             --repo "$REPO" \
             --title "$PKL_TAG" \
@@ -182,11 +204,3 @@ jobs:
             "artifacts/${PKL_TAG}.sha256" \
             "artifacts/${PKL_TAG}.zip" \
             "artifacts/${PKL_TAG}.zip.sha256"
-
-          # 2) PLAIN tag: 同じ commit に v<version> tag を打って push。
-          #    Release 自体は pkl tag 側 1 つで足りるので、plain tag は
-          #    annotated git tag (= ポインタ) としてだけ作成する。
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$PLAIN_TAG" "$COMMIT_SHA" -m "Release $PLAIN_TAG"
-          git push origin "$PLAIN_TAG"
