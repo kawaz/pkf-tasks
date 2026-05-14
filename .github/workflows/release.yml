@@ -2,46 +2,134 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'pkf-tasks@*'
+    branches: [main]
+    paths:
+      - "tasks/PklProject"
+  workflow_dispatch: # 手動 trigger (initial release や paths 漏れ救済用)
 
 permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build and publish Pkl package
+  check-version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.current }}
+      changed: ${{ steps.version.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
-      # pkfire 0.5.0+ の `v<version>` action tag を使う (DR-0004 archived)
-      - name: Setup pkfire (pkfire@0.6.0)
-        uses: mizchi/pkfire@v0.6.0
-      - name: Extract version from tag
-        id: ver
-        env:
-          REF_NAME: ${{ github.ref_name }}
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # bump-semver の vcs:latest-tag() で全 tag が必要
+
+      - name: Install bump-semver (dogfood for version compare)
         run: |
-          version="${REF_NAME#pkf-tasks@}"
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
-      - name: Verify PklProject version matches tag
+          LATEST=$(gh release list --repo kawaz/bump-semver --limit 1 --json tagName -q '.[0].tagName' | sed 's/^v//')
+          curl -fsSL "https://github.com/kawaz/bump-semver/releases/download/v${LATEST}/bump-semver-linux-amd64" -o /usr/local/bin/bump-semver
+          chmod +x /usr/local/bin/bump-semver
+          bump-semver --version
         env:
-          EXPECTED: ${{ steps.ver.outputs.version }}
-        working-directory: tasks
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Check PklProject version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
-          declared=$(grep -E '^\s+version = ' PklProject | sed -E 's/.*"([^"]+)".*/\1/')
-          if [ "$declared" != "$EXPECTED" ]; then
-            echo "::error::PklProject declares version=$declared but tag is pkf-tasks@$EXPECTED" >&2
+          CURRENT_VERSION=$(grep -E '^\s+version = ' tasks/PklProject | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "current=${CURRENT_VERSION}" >> "$GITHUB_OUTPUT"
+
+          if [ -z "$CURRENT_VERSION" ] || [ "$CURRENT_VERSION" = "0.0.0" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Placeholder version (${CURRENT_VERSION:-empty}); skipping release."
+            exit 0
+          fi
+
+          # semver 形式の検証 (bump-semver get -qq で exit code のみ)
+          if ! bump-semver get "$CURRENT_VERSION" -qq; then
+            echo "::error::Invalid PklProject version: ${CURRENT_VERSION}"
             exit 1
           fi
+
+          # 既存 tag より大きいか (二重リリース防止)。
+          # vcs:latest-tag() は monorepo-style `pkf-tasks@X.Y.Z` も @ peel fallback で認識
+          set +e
+          bump-semver compare gt "$CURRENT_VERSION" 'vcs:latest-tag()' --vcs git
+          CMP_EXIT=$?
+          set -e
+          case "$CMP_EXIT" in
+            0) ;;  # CURRENT > latest: release 続行
+            1)
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              echo "Version pkf-tasks@${CURRENT_VERSION} is not greater than latest tag; skipping release."
+              exit 0
+              ;;
+            2)
+              echo "compare gt exited 2 (no tags yet?); assuming first release"
+              ;;
+            *)
+              echo "::error::Unexpected exit code from bump-semver compare: ${CMP_EXIT}"
+              exit 1
+              ;;
+          esac
+
+          # GH 側の release 存在確認 (compare で通っても念のため)
+          if gh release view "pkf-tasks@${CURRENT_VERSION}" --repo "$REPO" >/dev/null 2>&1; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Release pkf-tasks@${CURRENT_VERSION} already exists; skipping."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "New version detected: pkf-tasks@${CURRENT_VERSION}"
+          fi
+
+  build:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup pkfire (pkfire@0.6.0)
+        uses: mizchi/pkfire@v0.6.0
+      - name: Cache Pkl packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.pkl/cache
+          key: pkl-cache-${{ hashFiles('tasks/PklProject.deps.json') }}
+          restore-keys: |
+            pkl-cache-
+      - name: Package
+        working-directory: tasks
+        run: |
+          pkl project resolve
+          pkl project package
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pkf-tasks-package
+          path: tasks/.out/pkf-tasks@*/
+          include-hidden-files: false
+
+  release:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: pkf-tasks-package
+          path: artifacts/
+
       - name: Extract release notes from CHANGELOG.md
         id: notes
         env:
-          VERSION: ${{ steps.ver.outputs.version }}
+          VERSION: ${{ needs.check-version.outputs.version }}
         run: |
-          # CHANGELOG.md の `## <VERSION> ` セクションを抽出。次の `## <数字>` の
-          # 直前まで。section が見つからない場合は terse fallback (release は
-          # 通すが notes は最小限の本文)。
+          # CHANGELOG.md の `## <VERSION> ` セクションを抽出 (次の `## <数字>` 直前まで)。
+          # section が見つからなければ terse fallback で release は通す
           notes=$(awk -v ver="$VERSION" '
             $0 ~ "^## " ver " " { flag=1; print; next }
             flag && $0 ~ "^## [0-9]" { flag=0 }
@@ -51,26 +139,23 @@ jobs:
             notes="Release pkf-tasks@${VERSION}. See CHANGELOG.md for details."
           fi
           printf '%s\n' "$notes" > /tmp/release-notes.md
-          echo "file=/tmp/release-notes.md" >> "$GITHUB_OUTPUT"
-      - name: Package
-        working-directory: tasks
-        run: |
-          pkl project resolve
-          pkl project package
-      - name: Upload release assets and notes
+
+      - name: Create release with tag + assets
         env:
           GH_TOKEN: ${{ github.token }}
-          REF_NAME: ${{ github.ref_name }}
-          VERSION: ${{ steps.ver.outputs.version }}
-          NOTES_FILE: ${{ steps.notes.outputs.file }}
-        working-directory: tasks
+          VERSION: ${{ needs.check-version.outputs.version }}
+          COMMIT_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
         run: |
-          gh release upload "$REF_NAME" \
-            ".out/pkf-tasks@${VERSION}/pkf-tasks@${VERSION}" \
-            ".out/pkf-tasks@${VERSION}/pkf-tasks@${VERSION}.sha256" \
-            ".out/pkf-tasks@${VERSION}/pkf-tasks@${VERSION}.zip" \
-            ".out/pkf-tasks@${VERSION}/pkf-tasks@${VERSION}.zip.sha256" \
-            --clobber
-          # CHANGELOG.md から抽出した本文で release notes を上書き
-          # (`gh release create` 時に手動で notes を渡していた場合も統一)。
-          gh release edit "$REF_NAME" --notes-file "$NOTES_FILE"
+          TAG="pkf-tasks@${VERSION}"
+          # gh release create が tag を自動作成 + Release 作成 + asset upload + notes 設定
+          # (kawaz 標準パターン: workflow 自身が tag を打つ、人/エージェントは tag を扱わない)
+          gh release create "$TAG" \
+            --repo "$REPO" \
+            --title "$TAG" \
+            --target "$COMMIT_SHA" \
+            --notes-file /tmp/release-notes.md \
+            "artifacts/${TAG}/${TAG}" \
+            "artifacts/${TAG}/${TAG}.sha256" \
+            "artifacts/${TAG}/${TAG}.zip" \
+            "artifacts/${TAG}/${TAG}.zip.sha256"
