@@ -154,19 +154,39 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
         run: |
-          TAG="pkf-tasks@${VERSION}"
+          # Tag 体系:
+          #   - PRIMARY (= GH Release が bind するもの): pkf-tasks@<version>
+          #     これは Pkl package proxy (pkg.pkl-lang.org) が GitHub
+          #     Releases から asset を fetch する際の URL 規約上必須な
+          #     形式。「<package-name>@<version>」が Pkl エコシステムの
+          #     要求であり、kawaz としては設計上イリーガルなケース
+          #     (Pkl 都合で仕方なく付けている)。
+          #   - PLAIN (= 慣習的 SemVer tag、bump-semver の vcs:latest-tag() が
+          #     拾う「よくあるバージョンタグ」): v<version>
+          #     こちらが本来の基本形。pkf-tasks@<version> が無い tag-only
+          #     consumer (= Pkl 関係ない外部ツール) はこの plain tag を見る。
+          #
           # actions/download-artifact@v8 は upload 元の dir 階層を保持せず、
           # path: 直下に file を展開するため、artifact 内の 4 file は
-          # artifacts/${TAG} / artifacts/${TAG}.sha256 / ... に配置される。
-          #
-          # gh release create が tag を自動作成 + Release 作成 + asset upload + notes 設定
-          # (kawaz 標準パターン: workflow 自身が tag を打つ、人/エージェントは tag を扱わない)
-          gh release create "$TAG" \
+          # artifacts/${PKL_TAG} / artifacts/${PKL_TAG}.sha256 / ... に配置される。
+          PKL_TAG="pkf-tasks@${VERSION}"
+          PLAIN_TAG="v${VERSION}"
+
+          # 1) PRIMARY release: gh release create が pkl tag を自動作成 + Release 作成
+          gh release create "$PKL_TAG" \
             --repo "$REPO" \
-            --title "$TAG" \
+            --title "$PKL_TAG" \
             --target "$COMMIT_SHA" \
             --notes-file /tmp/release-notes.md \
-            "artifacts/${TAG}" \
-            "artifacts/${TAG}.sha256" \
-            "artifacts/${TAG}.zip" \
-            "artifacts/${TAG}.zip.sha256"
+            "artifacts/${PKL_TAG}" \
+            "artifacts/${PKL_TAG}.sha256" \
+            "artifacts/${PKL_TAG}.zip" \
+            "artifacts/${PKL_TAG}.zip.sha256"
+
+          # 2) PLAIN tag: 同じ commit に v<version> tag を打って push。
+          #    Release 自体は pkl tag 側 1 つで足りるので、plain tag は
+          #    annotated git tag (= ポインタ) としてだけ作成する。
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$PLAIN_TAG" "$COMMIT_SHA" -m "Release $PLAIN_TAG"
+          git push origin "$PLAIN_TAG"
