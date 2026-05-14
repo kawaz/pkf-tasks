@@ -2,6 +2,14 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 3.0.1 — 2026-05-14
+
+Patch release. v3.0.0 で導入した `semver/check-bumped.pkl` の cmd 生成で、`failed=0` の直後に改行が入らず `failed=0      if ! bump-semver compare gt ...` が同一行に連結されて bash 構文エラーになっていた (`予期しないトークン 'elif' 周辺に構文エラー`)。Pkl multi-line string の closing `"""#` 直前改行が drop される仕様の見落とし。
+
+### Fixed
+
+- `tasks/semver/check-bumped.pkl`: `failed=0` を含む raw triple-quoted block の末尾に空行を 1 行追加して、後続の `versionFiles.map(...)` 連結結果が `failed=0\n      if ! ...` になるよう修正
+
 ## 3.0.0 — 2026-05-14
 
 Major release. API simplification (shell exec を受ける field の廃止) + 新 task group (`versions`) 追加。

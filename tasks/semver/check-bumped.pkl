@@ -107,6 +107,7 @@ check: Taskfile.Task = new Taskfile.Task {
 
       # 各 version ファイルが bump 済か個別に確認 (1 ファイルずつ gt 比較)
       failed=0
+
       """#
       + versionFiles
         .map((f) ->
