@@ -12,9 +12,9 @@
 ///   not found でエラーになるため、自身を `package://...` 形式で取り込む
 ///   準 dogfood (= release zip 経由) になっている。
 @ModuleInfo { minPklVersion = "0.31.0" }
-amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.7.0#/Taskfile.pkl"
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0#/Taskfile.pkl"
 
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/all.pkl" as kawaz
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.3.0#/all.pkl" as kawaz
 
 // =============================================================================
 // Self-dogfood lint / check (v2.0.0 で library export から外して inline 化)
