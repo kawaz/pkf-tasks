@@ -127,6 +127,9 @@ jobs:
           name: pkf-tasks-package
           path: artifacts/
 
+      - name: Diagnostic — list downloaded artifact contents
+        run: ls -la artifacts/
+
       - name: Extract release notes from CHANGELOG.md
         id: notes
         env:
@@ -152,6 +155,10 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           TAG="pkf-tasks@${VERSION}"
+          # actions/download-artifact@v8 は upload 元の dir 階層を保持せず、
+          # path: 直下に file を展開するため、artifact 内の 4 file は
+          # artifacts/${TAG} / artifacts/${TAG}.sha256 / ... に配置される。
+          #
           # gh release create が tag を自動作成 + Release 作成 + asset upload + notes 設定
           # (kawaz 標準パターン: workflow 自身が tag を打つ、人/エージェントは tag を扱わない)
           gh release create "$TAG" \
@@ -159,7 +166,7 @@ jobs:
             --title "$TAG" \
             --target "$COMMIT_SHA" \
             --notes-file /tmp/release-notes.md \
-            "artifacts/${TAG}/${TAG}" \
-            "artifacts/${TAG}/${TAG}.sha256" \
-            "artifacts/${TAG}/${TAG}.zip" \
-            "artifacts/${TAG}/${TAG}.zip.sha256"
+            "artifacts/${TAG}" \
+            "artifacts/${TAG}.sha256" \
+            "artifacts/${TAG}.zip" \
+            "artifacts/${TAG}.zip.sha256"
