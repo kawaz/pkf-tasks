@@ -11,7 +11,7 @@ Two main use cases:
 
 ## Public entry vs internal files
 
-- **Public entry**: `tasks/semver.pkl` — the only file consumers should `import`. Exported field names (`checkBumped` module reference, `compare` task, `allTasks`) are part of the 1.x public API contract
+- **Public entry**: `tasks/semver.pkl` — the only file consumers should `import`. Exported field names (`checkBumped` module reference, `compare` task, `tasks`) are part of the 1.x public API contract
 - **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
   - `check-bumped.pkl` — parameterisable gate module. Instantiate via `(kawaz.semver.checkBumped) { ... }.check`
   - `compare.pkl` — `semver:compare` task (ad-hoc CLI)
@@ -21,10 +21,10 @@ Two main use cases:
 ### `semver:check-bumped`
 
 - Usefulness: ★★★
-- Kind: **module reference** (consumer is expected to parameterise and instantiate; not included in `allTasks`)
+- Kind: **module reference** (consumer is expected to parameterise and instantiate; not included in `tasks`)
 - Internals: detect whether `triggerPaths` changed relative to the compare ref using `vcs.diffSummary`; if changes are present, run `bump-semver compare gt <file> vcs:<ref>:<file>` for every entry in `versionFiles`. If any file is not bumped, fail
 - Parameters:
-  - `compareRefCmd: String` — body of a bash command substitution that yields the compare ref. default `"echo main@origin"` (pre-push guard)
+  - `compareRef: String` — a plain VCS ref string (e.g. `main@origin`, `origin/main`, or a function call like `vcs:latest-tag(kawaz/pkf-tasks)`). default `"main@origin"` (pre-push guard, v3.0+). Earlier releases accepted a shell-command body via `compareRefCmd`; that was removed in v3.0 because consumers tended to put 10-line scripts in it instead of an actual ref
   - `triggerPaths: List<String>` — paths to watch for changes. default `List("src/")`
   - `versionFiles: List<String>` — files to bump (e.g. `VERSION` / `Cargo.toml` / `package.json`). default `List("VERSION")`
   - `taskName: String` — task name. Use distinct names when creating multiple instances. default `"semver:check-version-bumped"`
@@ -46,23 +46,23 @@ Two main use cases:
 
 ## Usage (whole group)
 
-Only `semver:compare` goes through `allTasks`; `check-bumped` is instantiated:
+Only `semver:compare` goes through `tasks`; `check-bumped` is instantiated:
 
 ```pkl
-amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0#/Taskfile.pkl"
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/all.pkl" as kawaz
 
 // pre-push guard (compare against main@origin)
 local checkPush = (kawaz.semver.checkBumped) {
-  compareRefCmd = "echo main@origin"
+  compareRef = "main@origin"
   triggerPaths = List("src/")
   versionFiles = List("VERSION")
   taskName = "semver:check-version-bumped"
 }.check
 
-// pre-release guard (compare against latest v* tag, requires tag fetch)
+// pre-release guard (compare against the latest semver tag via bump-semver's vcs: function)
 local checkRelease = (kawaz.semver.checkBumped) {
-  compareRefCmd = "git tag -l 'v*' --sort=-v:refname | head -1"
+  compareRef = "vcs:latest-tag()"
   triggerPaths = List("src/")
   versionFiles = List("VERSION")
   taskName = "semver:check-against-latest-release"
@@ -70,13 +70,13 @@ local checkRelease = (kawaz.semver.checkBumped) {
 }.check
 
 tasks {
-  ...kawaz.semver.allTasks   // registers semver:compare only
+  ...kawaz.semver.tasks   // registers semver:compare only
   checkPush                  // attach the instance tasks individually
   checkRelease
 }
 ```
 
-`semver:check-bumped` is excluded from `allTasks` because a meaningful instance can't be built without knowing the consumer project's version-file paths (the default is `VERSION`, but `Cargo.toml` etc. require parameterisation).
+`semver:check-bumped` is excluded from `tasks` because a meaningful instance can't be built without knowing the consumer project's version-file paths (the default is `VERSION`, but `Cargo.toml` etc. require parameterisation).
 
 ## Related
 

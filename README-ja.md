@@ -20,27 +20,27 @@
 ### 集約 import (一括、`all.pkl` 経由)
 
 ```pkl
-amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.7.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/all.pkl" as kawaz
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0#/Taskfile.pkl"
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.vcs.allTasks
-  ...kawaz.docs.allTasks
-  ...kawaz.migrate.allTasks
+  ...kawaz.vcs.tasks
+  ...kawaz.docs.tasks
+  ...kawaz.migrate.tasks
   kawaz.semver.compare
-  // (kawaz.semver.checkBumped) { compareRefCmd = ...; ... }.check  // parameterize して instance 化
+  // (kawaz.semver.checkBumped) { compareRef = "main@origin"; ... }.check  // parameterize して instance 化
 }
 ```
 
 ### 個別 import (一部 group だけ使う場合)
 
 ```pkl
-amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.7.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/vcs.pkl" as vcs
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/docs.pkl" as docs
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0#/Taskfile.pkl"
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/vcs.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/docs.pkl" as docs
 
 tasks {
-  ...vcs.allTasks
+  ...vcs.tasks
   docs.checkTranslations
 }
 ```
@@ -86,7 +86,7 @@ v1.0.0 以降は SemVer 2.0.0 に従う。2.x 系列の間は破壊的変更な�
 
 内部実装ファイル (`vcs/iface.pkl` / `vcs/jj.pkl` / `vcs/git.pkl` / `vcs/auto.pkl` / `docs/translations.pkl` / `semver/check-bumped.pkl` / `migrate/check-current.pkl` 等) は public contract に **含まない** — minor / patch でいつでも改名・移動し得る。利用側は必ず flat な group entry 経由で import すること。
 
-major 浮動が許容できるなら `pkf-tasks@2` で pin、完全再現したいなら exact pin (例: `pkf-tasks@2.2.2`)。どちらのケースでも `migrate:check-*` gate が pin の鮮度を保つ。
+major 浮動が許容できるなら `pkf-tasks@3` で pin、完全再現したいなら exact pin (例: `pkf-tasks@3.0.0`)。どちらのケースでも `migrate:check-*` gate が pin の鮮度を保つ。
 
 pkfire 0.6.0+ では CLI で **glob target** が使え、`<group>:<action>` 命名と相性が良い:
 

@@ -20,9 +20,5 @@ checkTranslations = translationsMod.checkTranslations
 /// 明示ペア指定で task 生成 (v2.1.0 で旧 `task` から rename)。
 function forPairs(pairs: Listing<String>): Taskfile.Task = translationsMod.forPairs(pairs)
 
-/// @deprecated v3.0 で削除予定。代わりに `forPairs(...)` を使う。
-@Deprecated { message = "Renamed to `forPairs`. Will be removed in v3.0." }
-function task(pairs: Listing<String>): Taskfile.Task = translationsMod.forPairs(pairs)
-
-/// 一括登録用 (`tasks { ...docs.allTasks }`)。
-allTasks: Listing<Taskfile.Task> = translationsMod.allTasks
+/// 一括登録用 (`tasks { ...docs.tasks }`)。
+tasks: Listing<Taskfile.Task> = translationsMod.tasks

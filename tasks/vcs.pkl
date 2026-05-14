@@ -35,5 +35,5 @@ function diffSummary(ref: String, paths: List<String>): String = autoMod.diffSum
 /// 任意 ref のファイル内容を取る bash 断片を返す helper (DR-0005)。
 function readAtRef(ref: String, path: String): String = autoMod.readAtRef(ref, path)
 
-/// 一括登録用 (`tasks { ...vcs.allTasks }`)。
-allTasks: Listing<Taskfile.Task> = autoMod.allTasks
+/// 一括登録用 (`tasks { ...vcs.tasks }`)。
+tasks: Listing<Taskfile.Task> = autoMod.tasks

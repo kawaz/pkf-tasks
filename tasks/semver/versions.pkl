@@ -1,0 +1,115 @@
+/// プロジェクトの version 情報を扱う task group。
+/// 2 task を提供:
+///
+///   - `version`: 全 source の version を一覧表示 (人が見る用、利用頻度高)
+///   - `semver:check-versions-aligned`: 全 source の version が一致しているか検査する gate
+///
+/// 用途:
+///   - 複数 file 一括 bump (e.g., kawaz/claude-cmux-msg の Claude Plugin 3 ファイル) で、
+///     どれか 1 つだけ手で書き換えて他を bump し忘れたケースを検出
+///   - `bump-version` 後に bin を build し忘れて、bin の `--version` 表示が古いままに
+///     なっているケースを検出 (ldflags 経由で version を埋め込む project 向け)
+///   - 「今このプロジェクトのバージョンは?」を `pkf run version` 一発で確認できる
+///     共通 task として kawaz/* で揃える
+///
+/// 設計:
+///   - 全 source を **`bump-semver` v0.16.0+ の input source syntax** で統一的に表現する。
+///     `versionFiles` は FILE パス (= `bump-semver get <file>`)、`cmdSources` は
+///     `cmd:<shell-command>` (= `bump-semver get 'cmd:<command>'`) として扱われ、
+///     bash 側はどちらも単一の loop で `bump-semver get $src` を呼ぶだけになる。
+///     抽象化はすべて bump-semver 側に寄せ、Pkl パラメータは sources のリストに留める。
+///
+/// パラメータ化:
+///   - `versionFiles`: 一致確認対象の version file 一覧 (default `List("VERSION")`)
+///   - `cmdSources`: 一致確認対象の `cmd:<shell-command>` リスト (default `List()`、
+///     利用側で `List("cmd:pkf run run -- --version")` 等を明示。bump-semver v0.16.0+ で
+///     `bash -c <cmd>` 実行、stdout の最初の非空行を VER として取得)
+///   - `versionTaskName`: 表示 task の名前 (default `"version"`)
+///   - `checkAlignedTaskName`: 一致確認 task の名前 (default `"semver:check-versions-aligned"`)
+@ModuleInfo { minPklVersion = "0.31.0" }
+module com.github.kawaz.pkfTasks.semver.versions
+
+import "@pkfire/Taskfile.pkl"
+
+/// 一致確認対象の version file 一覧。bump-semver の auto-detect で形式判別。
+versionFiles: List<String> = List("VERSION")
+
+/// 一致確認対象の `cmd:<shell-command>` リスト。各要素は bump-semver v0.16.0+ の
+/// `cmd:` input source として扱われ、`bash -c <command>` で実行されて stdout の
+/// 最初の非空行が VER として取得される。
+///
+/// 利用例: `List("cmd:pkf run run -- --version")` で bin の `--version` 出力を
+/// 比較対象に加え、ldflags 経由 version 埋め込みプロジェクトの「`bump-version`
+/// 後の build し忘れ」を release-time gate で検出できる。
+cmdSources: List<String> = List()
+
+/// 表示 task の名前。default `"version"`。
+versionTaskName: String = "version"
+
+/// 一致確認 task の名前。default `"semver:check-versions-aligned"`。
+checkAlignedTaskName: String = "semver:check-versions-aligned"
+
+/// sources[] / versions[] を集める共通 bash スクリプト。両 task の cmd 冒頭に挿入する。
+/// 実行後、`${sources[@]}` (= versionFiles + cmdSources) と `${versions[@]}` が利用可能。
+local versionsScript: String =
+  "set -euo pipefail\n"
+    + #"""
+
+    if ! command -v bump-semver >/dev/null 2>&1; then
+      echo 'ERROR: bump-semver (v0.16.0+) not installed (required for version source read).' >&2
+      echo '       Install: brew install kawaz/tap/bump-semver' >&2
+      exit 1
+    fi
+
+    sources=(
+    """#
+    + "\n"
+    + (versionFiles + cmdSources).map((s) -> "  '\(s)'\n").join("")
+    + #"""
+    )
+    versions=()
+    for s in "${sources[@]}"; do
+      v=$(bump-semver get "$s" --no-hint) || { echo "ERROR: cannot read $s" >&2; exit 1; }
+      versions+=("$v")
+    done
+    """#
+
+/// `version` task: 全 source の version を一覧表示 (人が見る用)。
+version: Taskfile.Task = new Taskfile.Task {
+  name = versionTaskName
+  description = "display versions from all sources (version files + cmd: sources)"
+  cache = false
+  cmd =
+    versionsScript
+      + #"""
+
+      for i in "${!versions[@]}"; do
+        printf '%s\t%s\n' "${sources[$i]}" "${versions[$i]}"
+      done | column -t -s "$(printf '\t')"
+      """#
+}
+
+/// `semver:check-versions-aligned` task: 全 source の version が一致するか検査する gate。
+checkAligned: Taskfile.Task = new Taskfile.Task {
+  name = checkAlignedTaskName
+  description = "ensure all version sources (files + cmd:) are aligned"
+  cache = false
+  cmd =
+    versionsScript
+      + #"""
+
+      uniq=$(printf '%s\n' "${versions[@]}" | sort -u)
+      uniq_count=$(printf '%s\n' "$uniq" | wc -l | tr -d ' ')
+
+      if [ "$uniq_count" -eq 1 ]; then
+        echo "ok: all versions aligned at $uniq (${#versions[@]} sources)"
+        exit 0
+      fi
+
+      echo "ERROR: version mismatch across sources:" >&2
+      for i in "${!versions[@]}"; do
+        echo "  ${sources[$i]}: ${versions[$i]}" >&2
+      done
+      exit 1
+      """#
+}

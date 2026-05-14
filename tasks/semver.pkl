@@ -1,6 +1,6 @@
 /// semver group entry. 利用者は `import ".../tasks/semver.pkl" as semver` で全機能にアクセス。
 ///
-/// `bump-semver` CLI 必須。v0.0.18 で flat 配置に統一 (旧 `semver/all.pkl` から移行)。
+/// `bump-semver` CLI 必須。
 @ModuleInfo { minPklVersion = "0.31.0" }
 module com.github.kawaz.pkfTasks.semver
 
@@ -8,17 +8,32 @@ import "@pkfire/Taskfile.pkl"
 
 import "semver/check-bumped.pkl" as checkBumpedMod
 import "semver/compare.pkl" as compareMod
+import "semver/versions.pkl" as versionsMod
 
 /// `checkBumped` は **module 参照** として公開 (利用側で
-/// `(semver.checkBumped) { compareRefCmd = ...; ... }.check` のように
+/// `(semver.checkBumped) { compareRef = ...; ... }.check` のように
 /// parameterize する想定)。
 checkBumped = checkBumpedMod
 
 /// `compare` は **task 直接** 公開 (acceptsArgs = true の ad-hoc CLI 用)。
 compare = compareMod.compare
 
-/// 一括登録用 (`tasks { ...semver.allTasks }`)。`checkBumped` は module 参照
-/// のため含めない (利用側で parameterize して instance task を作る前提)。
-allTasks: Listing<Taskfile.Task> = new {
+/// `versions` module 参照。`version` (表示) と `checkAligned` (一致確認) の 2 task を
+/// 提供する factory module。利用側で `(semver.versions) { versionFiles = ...; ... }`
+/// のように parameterize する想定。
+versions = versionsMod
+
+/// preset: default パラメータの `version` task (= `pkf run version` 用)。
+/// 単一 VERSION ファイル + bin --version の構成で OK ならこれを直接 tasks に入れる。
+version = versionsMod.version
+
+/// preset: default パラメータの `semver:check-versions-aligned` task。
+checkVersionsAligned = versionsMod.checkAligned
+
+/// 一括登録用 (`tasks { ...semver.tasks }`)。`checkBumped` / `versions` は module 参照
+/// のため含めない (利用側で parameterize して instance task を作る前提)。preset の
+/// `version` / `checkVersionsAligned` も同じ理由で含めない (default 値が project の
+/// versionFiles と合うとは限らないため、利用側で明示 instance 化を促す)。
+tasks: Listing<Taskfile.Task> = new {
   compare
 }

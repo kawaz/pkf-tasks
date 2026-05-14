@@ -2,6 +2,121 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 3.0.0 — 2026-05-14
+
+Major release. API simplification (shell exec を受ける field の廃止) + 新 task group (`versions`) 追加。
+
+### Breaking changes
+
+#### `semver:check-bumped` の field rename: `compareRefCmd` → `compareRef`
+
+旧 (v2.x):
+
+```pkl
+(kawaz.semver.checkBumped) {
+  compareRefCmd = "echo main@origin"  // ← shell exec を要求する文字列
+  ...
+}.check
+```
+
+新 (v3.0+):
+
+```pkl
+(kawaz.semver.checkBumped) {
+  compareRef = "main@origin"   // ← plain string
+  ...
+}.check
+```
+
+利用者は **plain string ref** を渡すだけ。動的 ref (= latest tag 取得等) は `bump-semver` の `vcs:` schema の関数形式 (`latest-tag()` / `latest-tag(<owner>/<repo>)`) を直接 `compareRef` に書ける。library 内部で `bump-semver get` 経由で解決される:
+
+```pkl
+// 動的 ref も plain string で書ける
+(kawaz.semver.checkBumped) {
+  compareRef = "latest-tag()"   // = bump-semver の vcs:latest-tag() schema
+  needsFetchTags = true
+  ...
+}.check
+```
+
+設計判断: 複雑な抽象化は **各 task の cmd 内** で吸収し、**入力 (= 公開 field) は plain value のみ** に揃える、という方針に統一。旧 `compareRefCmd` は shell exec を許す設計だったので「10 行のシェルスクリプトを書き始める」誤用を生んでいた (実プロジェクトで遭遇)。
+
+Migration: consumer の Taskfile.pkl で `compareRefCmd = "..."` を `compareRef = "..."` に書き換え。`compareRefCmd` の値が単純な `echo <ref>` なら `compareRef = "<ref>"` に。複雑なシェル script を書いてた場合は `bump-semver` の `vcs:` schema 関数形式に置き換えるか、利用側で別 task で ref を取得して `compareRef` に静的値で渡す。
+
+#### `docs.task(pairs)` deprecated alias 削除
+
+v2.1.0 で `forPairs(pairs)` にリネームし `@Deprecated` alias として残していた `task(pairs)` を削除。consumer は `kawaz.docs.forPairs(...)` に書き換え (= 機械的な置換)。
+
+#### 各 group module の `allTasks: Listing<Task>` を `tasks: Listing<Task>` にリネーム (pkfire schema 統一)
+
+pkfire の Taskfile.pkl schema が標準で公開する field 名 `tasks: Listing<Task>` (split-import example 由来) と統一。consumer の spread 一括登録も `...kawaz.<group>.tasks` 形式に:
+
+旧 (v2.x):
+
+```pkl
+tasks {
+  ...kawaz.vcs.allTasks
+  ...kawaz.docs.allTasks
+  ...kawaz.migrate.allTasks
+}
+```
+
+新 (v3.0+):
+
+```pkl
+tasks {
+  ...kawaz.vcs.tasks
+  ...kawaz.docs.tasks
+  ...kawaz.migrate.tasks
+}
+```
+
+Migration: 機械的な置換 (`.allTasks` → `.tasks`)。型も `List<Task>` → `Listing<Task>` で pkfire schema と完全一致 (spread の互換性は変わらず)。
+
+### Added
+
+#### `semver/versions.pkl` 新規 module — `version` / `semver:check-versions-aligned` 2 task を提供
+
+複数 source の version 情報を `bump-semver get` で統一的に取得・比較する task group。version file パスと bump-semver v0.16.0+ の `cmd:<shell-command>` source を同じリストで渡せる:
+
+```pkl
+local versions = (kawaz.semver.versions) {
+  versionFiles = List(".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", "package.json")
+  cmdSources = List()   // bin --version 取得が必要なら List("cmd:pkf run run -- --version") 等
+}
+
+local versionDisplay = versions.version          // pkf run version で一覧表示
+local versionsAligned = versions.checkAligned    // gate
+```
+
+- **`version` task** (= `pkf run version`): 全 source の version を `source\tversion` 形式で一覧表示
+- **`semver:check-versions-aligned` task**: 同じ取得ロジックで `sort -u` して uniq count == 1 を確認。push gate に組み込む想定。ldflags で bin に version を埋め込むプロジェクトでは `cmdSources = List("cmd:pkf run run -- --version")` を渡すと「`bump-version` 後の build し忘れ」も同時に検出できる
+
+preset (default = `VERSION` 1 ファイルのみ、cmdSources は空) は `kawaz.semver.version` / `kawaz.semver.checkVersionsAligned` で直接利用可能。
+
+依存: **`bump-semver` v0.16.0+ 必須**。`cmd:<shell-command>` input source (v0.16.0 で追加) を `bump-semver get` で解決する設計のため、それ以前の版だと `cmdSources` を空にしないとエラーになる。
+
+### Migration steps
+
+```bash
+# 1. import を v3 に bump
+# Taskfile.pkl 内で:
+# import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.3.1#/..."
+# →
+# import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/..."
+
+# 2. compareRefCmd を compareRef に書き換え (該当箇所のみ)
+# (kawaz.semver.checkBumped) { compareRefCmd = "echo main@origin"; ... }
+# →
+# (kawaz.semver.checkBumped) { compareRef = "main@origin"; ... }
+
+# 3. task(pairs) を forPairs(pairs) に書き換え (利用していた場合のみ、v2.1.0+ なら既に forPairs を推奨済)
+# kawaz.docs.task(...) → kawaz.docs.forPairs(...)
+
+# 4. allTasks の spread を tasks に書き換え (利用してた場合のみ、機械的な置換)
+# tasks { ...kawaz.vcs.allTasks } → tasks { ...kawaz.vcs.tasks }
+```
+
 ## 2.3.1 — 2026-05-14
 
 Patch release. pkfire 0.8.0 で導入された `Task.cmd` 省略 (deps-only umbrella) を採用してライブラリ内部を整理。

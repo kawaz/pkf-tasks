@@ -4,11 +4,11 @@
 /// 全 group にアクセスできる:
 ///
 ///   tasks {
-///     ...kawaz.vcs.allTasks
-///     ...kawaz.docs.allTasks
-///     ...kawaz.migrate.allTasks
+///     ...kawaz.vcs.tasks
+///     ...kawaz.docs.tasks
+///     ...kawaz.migrate.tasks
 ///     kawaz.semver.compare
-///     (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check
+///     (kawaz.semver.checkBumped) { compareRef = "main@origin" }.check
 ///   }
 ///
 /// kawaz/* の各リポジトリは pkf-tasks の全機能を使う前提なので、集約 import が

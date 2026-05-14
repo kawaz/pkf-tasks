@@ -4,18 +4,21 @@
 /// push 前 / CI release 前のガードとして使う。
 ///
 /// パラメータ化:
-///   - `compareRefCmd`: 比較対象 ref を返す bash command substitution の中身。
-///     例: `echo main@origin` (push 前ガード) / `git tag -l 'v*' --sort=-v:refname | head -1`
-///     (release 前ガード)
+///   - `compareRef`: 比較対象 ref。bump-semver `vcs:<ref>` schema の `<ref>` 部分を直接書く。
+///     - 静的: `main@origin` / `origin/main` / `v0.15.0` / etc.
+///     - 動的: `latest-tag()` / `latest-tag(<owner>/<repo>)` / etc. (= 関数形式は内部で `bump-semver get` 経由で解決)
 ///   - `triggerPaths`: 変更検知の対象 paths。default は `src/`
 ///   - `versionFiles`: bump 対象の version ファイル一覧 (e.g. `VERSION` /
 ///     `Cargo.toml` / `package.json` / `pyproject.toml` / 利用者カスタム)。複数可
 ///   - `taskName`: task 名 (利用側で別 task として 2 つインスタンス化したい時に変える)
-///   - `needsFetchTags`: tag 系の compareRef (`git tag -l 'v*' ...`, `vcs:latest-tag()`)
-///     を使う場合に true。`vcs.fetchTags` を deps に挟んで jj/git の tag 同期を行う
+///   - `needsFetchTags`: tag 系の compareRef (`latest-tag()` 等) を使う場合に true。
+///     `vcs.fetchTags` を deps に挟んで jj/git の tag 同期を行う
 ///     (jj 環境で `git fetch --tags` 後に `jj git import` が必要な問題を吸収、DR-0006)
 ///
 /// 設計判断:
+///   - 利用者は **plain string ref を渡すだけ**。shell exec / regex 等の複雑な抽象化は
+///     全部 task 内部の bash で吸収する。動的 ref も `vcs:` schema の関数形式
+///     (`latest-tag()` 等) として宣言的に書ける。
 ///   - **bump-semver 必須**。SemVer 比較は bump-semver の責務として切り分け、
 ///     ない環境では `not implemented: install bump-semver` で止める。pkf-tasks の責務は
 ///     VCS dispatch まで、SemVer 比較は bump-semver に任せる。
@@ -23,13 +26,13 @@
 /// 利用例 (bump-semver の Taskfile.pkl):
 ///   import "@pkf-tasks/semver/check-bumped.pkl" as semverCheck
 ///   local checkPush = (semverCheck) {
-///     compareRefCmd = "echo main@origin"
+///     compareRef = "main@origin"
 ///     triggerPaths = List("src/")
 ///     versionFiles = List("VERSION")
 ///     taskName = "semver:check-version-bumped"
 ///   }.check
 ///   local checkRelease = (semverCheck) {
-///     compareRefCmd = "git tag -l 'v*' --sort=-v:refname | head -1"
+///     compareRef = "latest-tag()"                       // 動的 ref、内部で解決
 ///     triggerPaths = List("src/")
 ///     versionFiles = List("VERSION")
 ///     taskName = "semver:check-against-latest-release"
@@ -42,9 +45,10 @@ import "@pkfire/Taskfile.pkl"
 
 import "../vcs/auto.pkl" as vcs
 
-/// 比較対象 ref を返す bash command substitution の中身 (`$(...)` の中)。
-/// default は `main@origin` (push 前ガード相当)。
-compareRefCmd: String = "echo main@origin"
+/// 比較対象 ref。bump-semver の `vcs:<ref>` schema の `<ref>` 部分を直接書く。
+/// 静的 (`main@origin` 等) でも動的 (`latest-tag()` 等) でも可、関数形式は内部で
+/// `bump-semver get` 経由で解決される。default は `main@origin` (push 前ガード相当)。
+compareRef: String = "main@origin"
 
 /// 変更検知の対象 paths。VCS の path filter にそのまま渡される。
 triggerPaths: List<String> = List("src/")
@@ -71,26 +75,51 @@ check: Taskfile.Task = new Taskfile.Task {
     else
       new Listing<Taskfile.Task> {}
   cmd =
-    """
-    compare_ref="$(\(compareRefCmd))"
-    if [ -z "$compare_ref" ]; then
-      echo 'ERROR: compareRefCmd returned empty (no comparison target found)' >&2
+    "set -euo pipefail\n"
+      + "compare_ref='\(compareRef)'\n"
+      + #"""
+      # 動的 ref (関数形式) は bump-semver get で解決して静的 ref に置換
+      case "$compare_ref" in
+        *\(*)
+          if ! command -v bump-semver >/dev/null 2>&1; then
+            echo 'ERROR: bump-semver not installed (required for dynamic compareRef).' >&2
+            echo '       Install: brew install kawaz/tap/bump-semver' >&2
+            exit 1
+          fi
+          compare_ref=$(bump-semver get "vcs:${compare_ref}" --no-hint) || {
+            echo "ERROR: failed to resolve compareRef \"$compare_ref\" via bump-semver" >&2
+            exit 1
+          }
+          ;;
+      esac
+
+      # diff 確認: trigger paths が変更されていなければ skip (success)
+      """#
+      + "diff_out=\(vcs.diffSummary("$compare_ref", triggerPaths))\n"
+      + #"""
+      [ -z "$diff_out" ] && exit 0
+
+      if ! command -v bump-semver >/dev/null 2>&1; then
+        echo 'ERROR: bump-semver not installed. SemVer comparison fallback is not implemented.' >&2
+        echo '       Install: brew install kawaz/tap/bump-semver' >&2
+        exit 1
+      fi
+
+      # 各 version ファイルが bump 済か個別に確認 (1 ファイルずつ gt 比較)
+      failed=0
+      """#
+      + versionFiles
+        .map((f) ->
+          "      if ! bump-semver compare gt '\(f)' \"vcs:${compare_ref}:\(f)\" --no-hint; then\n"
+            + "        echo \"ERROR: \(f) not bumped since $compare_ref\" >&2\n"
+            + "        failed=1\n"
+            + "      fi\n"
+        )
+        .join("")
+      + #"""
+      [ $failed -eq 0 ] && exit 0
+
+      echo "       run: pkf run bump-version" >&2
       exit 1
-    fi
-
-    diff_out=\(vcs.diffSummary("$compare_ref", triggerPaths))
-    [ -z "$diff_out" ] && exit 0
-
-    if ! command -v bump-semver >/dev/null 2>&1; then
-      echo 'ERROR: bump-semver not installed. SemVer comparison fallback is not implemented.' >&2
-      echo '       Install: brew install kawaz/tap/bump-semver' >&2
-      exit 1
-    fi
-
-    \(versionFiles.map((f) -> "bump-semver compare gt \(f) vcs:\"$compare_ref\":\(f) --no-hint").join(" && ")) && exit 0
-
-    echo "ERROR: \(triggerPaths.join(", ")) changed since $compare_ref but version not bumped" >&2
-    echo '       run: just bump-version' >&2
-    exit 1
-    """
+      """#
 }

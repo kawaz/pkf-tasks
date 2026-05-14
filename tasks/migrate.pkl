@@ -28,8 +28,8 @@ checkPkfire = checkPkfireMod.check
 /// `migrate:update-pkfire` task (action)。pkfire 0.6.0+ の `pkf migrate` ラップ。
 updatePkfire = updatePkfireMod.update
 
-/// 一括登録用 (`tasks { ...migrate.allTasks }`)。
-allTasks: Listing<Taskfile.Task> = new {
+/// 一括登録用 (`tasks { ...migrate.tasks }`)。
+tasks: Listing<Taskfile.Task> = new {
   checkPkfTasks
   updatePkfTasks
   checkPkfire

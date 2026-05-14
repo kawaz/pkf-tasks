@@ -8,7 +8,7 @@ The design philosophy is the same as `semver:check-*`: **push's deps = the disco
 
 ## Public entry vs internal files
 
-- **Public entry**: `tasks/migrate.pkl` — the only file consumers should `import`. Exported field names (`checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire` / `allTasks`) are part of the 1.x public API contract
+- **Public entry**: `tasks/migrate.pkl` — the only file consumers should `import`. Exported field names (`checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire` / `tasks`) are part of the 1.x public API contract
 - **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
   - `check-current.pkl` — `migrate:check-pkf-tasks-current` (pkf-tasks tracking gate)
   - `update-self.pkl` — `migrate:update-pkf-tasks` (pkf-tasks auto-update action, sed in-place)
@@ -57,7 +57,7 @@ amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfi
 import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.migrate.allTasks   // register all 4 tasks
+  ...kawaz.migrate.tasks   // register all 4 tasks
 }
 
 // wire the check-* tasks into push's deps

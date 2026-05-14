@@ -20,27 +20,27 @@ Each module directory has its own README with task details, parameters, and usag
 ### Bundled import (one-liner via `all.pkl`)
 
 ```pkl
-amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.7.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/all.pkl" as kawaz
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0#/Taskfile.pkl"
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.vcs.allTasks
-  ...kawaz.docs.allTasks
-  ...kawaz.migrate.allTasks
+  ...kawaz.vcs.tasks
+  ...kawaz.docs.tasks
+  ...kawaz.migrate.tasks
   kawaz.semver.compare
-  // (kawaz.semver.checkBumped) { compareRefCmd = ...; ... }.check  // parameterise per-instance
+  // (kawaz.semver.checkBumped) { compareRef = "main@origin"; ... }.check  // parameterise per-instance
 }
 ```
 
 ### Per-module import (pick only what you need)
 
 ```pkl
-amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.7.0#/Taskfile.pkl"
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/vcs.pkl" as vcs
-import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@2.2.2#/docs.pkl" as docs
+amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.10.0#/Taskfile.pkl"
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/vcs.pkl" as vcs
+import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@3.0.0#/docs.pkl" as docs
 
 tasks {
-  ...vcs.allTasks
+  ...vcs.tasks
   docs.checkTranslations
 }
 ```
@@ -86,7 +86,7 @@ pkf-tasks follows SemVer 2.0.0 from v1.0.0 onward. The **public API contract** (
 
 Internal implementation files (`vcs/iface.pkl`, `vcs/jj.pkl`, `vcs/git.pkl`, `vcs/auto.pkl`, `docs/translations.pkl`, `semver/check-bumped.pkl`, `migrate/check-current.pkl`, etc.) are **not** part of the public contract — they may move or be renamed in any minor/patch release. Always import via the flat group entries.
 
-Pin to `pkf-tasks@2` for major-only floating, or to an exact version (e.g. `pkf-tasks@2.2.2`) for full reproducibility. The `migrate:check-*` gates keep the pin up to date regardless.
+Pin to `pkf-tasks@3` for major-only floating, or to an exact version (e.g. `pkf-tasks@3.0.0`) for full reproducibility. The `migrate:check-*` gates keep the pin up to date regardless.
 
 Pkfire 0.6.0+ supports **glob targets** on the CLI, composing well with the `<group>:<action>` task naming:
 

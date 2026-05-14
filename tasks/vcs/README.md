@@ -10,7 +10,7 @@ Pkl evaluates purely and cannot observe filesystem state, so picking jj.pkl or g
 
 - **Public entry**: `tasks/vcs.pkl` — the only file consumers should `import`. Exported field names are part of the 1.x public API contract
 - **Internal implementation** (do not import directly from outside; renames/moves may happen in any minor release):
-  - `iface.pkl` — abstract module. Interface definitions for `commit` / `push` / `fetch` / `ensureClean` / `fetchTags` plus the `allTasks: Listing<Task>` aggregation property
+  - `iface.pkl` — abstract module. Interface definitions for `commit` / `push` / `fetch` / `ensureClean` / `fetchTags` plus the `tasks: Listing<Task>` aggregation property
   - `jj.pkl` — jj implementation (`extends "iface.pkl"`)
   - `git.pkl` — git implementation (`extends "iface.pkl"`)
   - `auto.pkl` — runtime-dispatch implementation. Uses each jj.pkl Task structure (params / env / cache) as a base and overrides cmd and description with the auto-detect variant. Also exports the `diffSummary` / `readAtRef` Pkl helper functions. Re-exported from `tasks/vcs.pkl`
@@ -78,7 +78,7 @@ amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfi
 import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.vcs.allTasks   // bulk-register commit/push/fetch/ensure-clean/fetch-tags
+  ...kawaz.vcs.tasks   // bulk-register commit/push/fetch/ensure-clean/fetch-tags
 }
 ```
 

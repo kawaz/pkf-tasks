@@ -83,7 +83,7 @@ local smokeEval: Task = new {
   cmd =
     """
     set -euo pipefail
-    for module in vcs.pkl docs.pkl semver.pkl migrate.pkl all.pkl vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl semver/check-bumped.pkl semver/compare.pkl migrate/check-current.pkl migrate/update-self.pkl migrate/check-pkfire-current.pkl migrate/update-pkfire.pkl; do
+    for module in vcs.pkl docs.pkl semver.pkl migrate.pkl all.pkl vcs/jj.pkl vcs/git.pkl vcs/auto.pkl docs/translations.pkl semver/check-bumped.pkl semver/compare.pkl semver/versions.pkl migrate/check-current.pkl migrate/update-self.pkl migrate/check-pkfire-current.pkl migrate/update-pkfire.pkl; do
       echo "==> pkl eval $module"
       pkl eval "$module" >/dev/null
     done
@@ -119,7 +119,6 @@ local ci: Task = new {
     packageBuild
     kawaz.docs.checkTranslations
   }
-  // cmd 省略 = deps-only umbrella (pkfire 0.8+)
 }
 
 local default: Task = new {
@@ -155,6 +154,8 @@ tasks {
   ci
   smokeEval
   packageBuild
+  // self import = published pkf-tasks@2.3.1、その API では allTasks 名を使う。
+  // self import を 3.0.0 に上げる patch release (v3.0.1) で .tasks に揃える。
   ...kawaz.vcs.allTasks
   ...kawaz.docs.allTasks
   // 汎用 semver compare (v0.0.8 から、ad-hoc CLI 用)

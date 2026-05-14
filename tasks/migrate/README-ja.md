@@ -8,7 +8,7 @@
 
 ## Public entry と内部ファイル
 
-- **Public entry**: `tasks/migrate.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名 (`checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire` / `allTasks`) は 1.x の public API contract に含まれる
+- **Public entry**: `tasks/migrate.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名 (`checkPkfTasks` / `updatePkfTasks` / `checkPkfire` / `updatePkfire` / `tasks`) は 1.x の public API contract に含まれる
 - **内部実装** (外部から直接 import しない、minor release でも改名・移動し得る):
   - `check-current.pkl` — `migrate:check-pkf-tasks-current` (pkf-tasks の追従 gate)
   - `update-self.pkl` — `migrate:update-pkf-tasks` (pkf-tasks の自動更新 action、sed in-place)
@@ -57,7 +57,7 @@ amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfi
 import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.migrate.allTasks   // 4 task 全部登録
+  ...kawaz.migrate.tasks   // 4 task 全部登録
 }
 
 // push の deps に check-* を組み込む

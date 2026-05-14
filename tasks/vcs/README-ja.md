@@ -10,7 +10,7 @@ Pkl は pure 評価で FS state を見られないため、評価時に jj/git �
 
 - **Public entry**: `tasks/vcs.pkl` — 利用者が `import` してよい唯一のファイル。export している field 名は 1.x の public API contract に含まれる
 - **内部実装** (外部から直接 import しない、minor release でも改名・移動し得る):
-  - `iface.pkl` — abstract module。`commit` / `push` / `fetch` / `ensureClean` / `fetchTags` の interface 定義 + `allTasks: Listing<Task>` 集約プロパティ
+  - `iface.pkl` — abstract module。`commit` / `push` / `fetch` / `ensureClean` / `fetchTags` の interface 定義 + `tasks: Listing<Task>` 集約プロパティ
   - `jj.pkl` — jj 実装 (`extends "iface.pkl"`)
   - `git.pkl` — git 実装 (`extends "iface.pkl"`)
   - `auto.pkl` — 実行時 dispatch の実体。jj.pkl の各 Task 構造 (params / env / cache) を base に、cmd と description を auto-detect 版で上書き。`diffSummary` / `readAtRef` の Pkl helper 関数も提供。`tasks/vcs.pkl` が re-export する
@@ -78,7 +78,7 @@ amends "package://pkg.pkl-lang.org/github.com/mizchi/pkfire/pkfire@0.6.0#/Taskfi
 import "package://pkg.pkl-lang.org/github.com/kawaz/pkf-tasks/pkf-tasks@1.0.0#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.vcs.allTasks   // commit/push/fetch/ensure-clean/fetch-tags 一括登録
+  ...kawaz.vcs.tasks   // commit/push/fetch/ensure-clean/fetch-tags 一括登録
 }
 ```
 
