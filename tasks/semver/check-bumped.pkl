@@ -94,6 +94,7 @@ check: Taskfile.Task = new Taskfile.Task {
       esac
 
       # diff 確認: trigger paths が変更されていなければ skip (success)
+
       """#
       + "diff_out=\(vcs.diffSummary("$compare_ref", triggerPaths))\n"
       + #"""

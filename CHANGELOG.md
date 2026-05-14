@@ -2,6 +2,14 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 3.0.2 — 2026-05-14
+
+Patch release. v3.0.1 で `check-bumped.pkl` の bash 構文 bug を partial fix していたが同じ Pkl multi-line string `"""#` 直前改行 drop 問題が **diff 確認コメントの直後にも存在** していて見落とし。`# diff 確認: trigger paths が変更されていなければ skip (success)diff_out=$(...)` が同一行に連結されてコメント扱いで以降の if-elif-fi 構造が宙に浮き bash 構文エラー。
+
+### Fixed
+
+- `tasks/semver/check-bumped.pkl`: `# diff 確認: ...skip (success)` のコメント行直後にも空行 1 行を追加。v3.0.1 と同じ pattern (closing `"""#` 直前に空行を残して改行を維持)。`grep -nE '"""#$' tasks/semver/check-bumped.pkl` で抽出した closing 3 箇所のうち、後ろに `+` 連結が続く 2 箇所 (= L98 と L112) が改行保持必須。残り 1 箇所 (= 末尾 closing L126) は連結なしなので drop されても影響なし、見直し OK
+
 ## 3.0.1 — 2026-05-14
 
 Patch release. v3.0.0 で導入した `semver/check-bumped.pkl` の cmd 生成で、`failed=0` の直後に改行が入らず `failed=0      if ! bump-semver compare gt ...` が同一行に連結されて bash 構文エラーになっていた (`予期しないトークン 'elif' 周辺に構文エラー`)。Pkl multi-line string の closing `"""#` 直前改行が drop される仕様の見落とし。
