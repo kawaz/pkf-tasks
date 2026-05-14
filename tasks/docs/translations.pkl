@@ -196,7 +196,7 @@ function forPairs(pairs: Listing<String>): Taskfile.Task = new Taskfile.Task {
     commitLagForPairs(pairs)
     linksForPairs(pairs)
   }
-  cmd = ":" // umbrella、stdout を汚さない (bash noop)
+  // cmd 省略 = deps-only umbrella (pkfire 0.8+)
 }
 
 /// @deprecated v3.0 で削除予定。代わりに `forPairs(...)` を使う。

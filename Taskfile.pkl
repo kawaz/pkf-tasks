@@ -119,7 +119,7 @@ local ci: Task = new {
     packageBuild
     kawaz.docs.checkTranslations
   }
-  cmd = ":" // umbrella、stdout を汚さない (bash noop)
+  // cmd 省略 = deps-only umbrella (pkfire 0.8+)
 }
 
 local default: Task = new {
