@@ -39,14 +39,14 @@ The internal module FQN uses `com.github.kawaz.pkfTasks.*`. Consumers always `im
 A single `import "package://...pkf-tasks@<version>#/all.pkl" as kawaz` line gives consumers access to every group (introduced in v0.0.10). Since every kawaz/* repo is expected to use the full pkf-tasks surface, an aggregate import is more DRY than wiring up individual `vcs/auto.pkl as vcs`, `docs/translations.pkl as docs`, ... imports.
 
 ```pkl
-import "package://...pkf-tasks@2.0.0#/all.pkl" as kawaz
+import "package://...pkf-tasks@3.0.2#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.vcs.allTasks                                       // commit / push / fetch / ensureClean / fetchTags
-  ...kawaz.docs.allTasks                                      // checkTranslations
+  ...kawaz.vcs.tasks                                          // commit / push / fetch / ensureClean / fetchTags
+  ...kawaz.docs.tasks                                         // checkTranslations
   kawaz.semver.compare                                        // ad-hoc CLI use (acceptsArgs)
-  (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check  // parameterize via module reference
-  ...kawaz.migrate.allTasks                                   // check + update
+  (kawaz.semver.checkBumped) { compareRef = "main@origin" }.check  // parameterize via module reference
+  ...kawaz.migrate.tasks                                      // check + update
 }
 ```
 
@@ -57,9 +57,11 @@ The structure is two-tiered: the **root `tasks/all.pkl`** imports each group's `
 Each `tasks/<group>.pkl` mixes two export styles depending on intent:
 
 - **Task-direct export** — `kawaz.semver.compare` (an `acceptsArgs` Task) can be registered as-is with `tasks { kawaz.semver.compare }`.
-- **Module-reference export** — `kawaz.semver.checkBumped` is exported as the **module** so consumers can parameterize it: `(kawaz.semver.checkBumped) { compareRefCmd = ...; versionFiles = ... }.check` produces an instance task.
+- **Module-reference export** — `kawaz.semver.checkBumped` is exported as the **module** so consumers can parameterize it: `(kawaz.semver.checkBumped) { compareRef = ...; versionFiles = ... }.check` produces an instance task.
 
-Each group entry also exposes `allTasks: Listing<Task>` so consumers can use spread registration like `tasks { ...kawaz.vcs.allTasks }` (added in v0.0.11). Parameterize-required modules are intentionally excluded from `allTasks` — instantiating them is the consumer's responsibility.
+Each group entry also exposes `tasks: Listing<Task>` so consumers can use spread registration like `tasks { ...kawaz.vcs.tasks }` (introduced in v0.0.11 under the name `allTasks`; renamed to `tasks` in v3.0 to match pkfire's schema field). Parameterize-required modules are intentionally excluded from `tasks` — instantiating them is the consumer's responsibility.
+
+> The group's `tasks` field name collides with the root Pkl `tasks { ... }` block in the consumer's Taskfile.pkl, but this mirrors pkfire 0.10.0's own split-import example and is intentional. Spread sites use `...kawaz.<group>.tasks` to access the group's field; the root block is disambiguated by context.
 
 ## VCS abstraction — abstract module + extends + runtime dispatch
 
@@ -122,11 +124,11 @@ A gate Task that fails if `triggerPaths` have changed since a comparison ref but
 
 It is parameterized so the consumer can instantiate multiple tasks:
 
-- `compareRefCmd: String` — body of a bash command substitution returning the comparison ref
+- `compareRef: String` — comparison VCS ref. Plain refs (`main@origin`, `origin/main`, `v0.15.0`) and bump-semver `vcs:` schema function calls (`latest-tag()`, `latest-tag(<owner>/<repo>)`) are both accepted (function calls are resolved internally via `bump-semver get "vcs:<ref>"`). Renamed in v3.0 from the older `compareRefCmd` (which took a shell command body) to a plain string field
 - `triggerPaths: List<String>` — paths whose changes should trigger the check (default `src/`)
 - `versionFiles: List<String>` — version files that must be bumped (consumer-project's `VERSION` / `Cargo.toml` / `package.json` etc., multiple allowed)
 - `taskName: String` — task name (consumers usually instantiate two: `semver:check-version-bumped` and `semver:check-against-latest-release`)
-- `needsFetchTags: Boolean` — when `true`, inserts `vcs.fetchTags` into the task's `deps` (added in v0.0.9). Enable this whenever the `compareRefCmd` resolves to a tag-derived ref (`git tag -l 'v*' ...`, `vcs:latest-tag()`, ...) so the local jj/git tag view is synced before comparison. Defaults to `false` for the common `main@origin` push-gate case.
+- `needsFetchTags: Boolean` — when `true`, inserts `vcs.fetchTags` into the task's `deps` (added in v0.0.9). Enable this whenever the `compareRef` resolves to a tag-derived ref (`vcs:latest-tag()`, …) so the local jj/git tag view is synced before comparison. Defaults to `false` for the common `main@origin` push-gate case.
 
 The consumer uses Pkl's object-amend pattern, `(semverCheck) { ... }.check`, to fan out to several tasks. Internally the task uses `vcs.diffSummary` to detect changes in `triggerPaths`; if non-empty, it runs `bump-semver compare gt VERSION vcs:"$compare_ref":VERSION` for each VERSION file.
 

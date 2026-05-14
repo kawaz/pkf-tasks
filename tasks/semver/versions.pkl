@@ -62,8 +62,8 @@ local versionsScript: String =
     fi
 
     sources=(
+
     """#
-    + "\n"
     + (versionFiles + cmdSources).map((s) -> "  '\(s)'\n").join("")
     + #"""
     )

@@ -2,6 +2,18 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 3.0.3 — 2026-05-14
+
+Patch release. v3.0.0 で `versions.pkl` に潜んでいた同じ Pkl multi-line string `"""#` 直前改行 drop パターンを構造的に解消、加えて DESIGN docs を v3.0 仕様 (`tasks` / `compareRef`) に追従させる漏れ修正。
+
+### Fixed
+
+- `tasks/semver/versions.pkl`: `sources=(` を含む raw triple-quoted block で closing 直前に空行を入れる canonical pattern に統一。これまで `+ "\n"` という見えない workaround で改行を補完していたが、後続 refactor で消されると再 bug 化する脆さがあった。v3.0.1/v3.0.2 fix と同じ canonical pattern (`check-bumped.pkl` 参照) に揃える。
+
+### Docs
+
+- `docs/DESIGN.md` / `docs/DESIGN-ja.md`: v3.0 で行った rename (`allTasks` → `tasks`、`compareRefCmd` → `compareRef`) を文章と例にも反映。`tasks` field 名が利用側 root の `tasks { ... }` block と衝突する件について意図的な慣習合わせと注記を追加。
+
 ## 3.0.2 — 2026-05-14
 
 Patch release. v3.0.1 で `check-bumped.pkl` の bash 構文 bug を partial fix していたが同じ Pkl multi-line string `"""#` 直前改行 drop 問題が **diff 確認コメントの直後にも存在** していて見落とし。`# diff 確認: trigger paths が変更されていなければ skip (success)diff_out=$(...)` が同一行に連結されてコメント扱いで以降の if-elif-fi 構造が宙に浮き bash 構文エラー。

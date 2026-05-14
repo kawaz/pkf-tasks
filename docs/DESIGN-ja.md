@@ -39,14 +39,14 @@ v1.0.0 で sub `<group>/all.pkl` 集約は `tasks/<group>.pkl` に flat 化さ�
 利用側で `import "package://...pkf-tasks@<version>#/all.pkl" as kawaz` 1 行で全 group にアクセスできるようにする root 集約 (v0.0.10 で導入)。kawaz/* の各リポは pkf-tasks の全機能を使う前提なので、個別 import (`vcs/auto.pkl as vcs`, `docs/translations.pkl as docs`, ...) より集約 import の方が DRY。
 
 ```pkl
-import "package://...pkf-tasks@2.0.0#/all.pkl" as kawaz
+import "package://...pkf-tasks@3.0.2#/all.pkl" as kawaz
 
 tasks {
-  ...kawaz.vcs.allTasks                                       // commit / push / fetch / ensureClean / fetchTags
-  ...kawaz.docs.allTasks                                      // checkTranslations
+  ...kawaz.vcs.tasks                                          // commit / push / fetch / ensureClean / fetchTags
+  ...kawaz.docs.tasks                                         // checkTranslations
   kawaz.semver.compare                                        // ad-hoc CLI 用 (acceptsArgs)
-  (kawaz.semver.checkBumped) { compareRefCmd = "..." }.check  // parameterize は module 参照
-  ...kawaz.migrate.allTasks                                   // check + update
+  (kawaz.semver.checkBumped) { compareRef = "main@origin" }.check  // parameterize は module 参照
+  ...kawaz.migrate.tasks                                      // check + update
 }
 ```
 
@@ -57,9 +57,11 @@ tasks {
 各 group entry (`tasks/<group>.pkl`) は 2 通りの公開スタイルを使い分ける:
 
 - **task 直接公開** — `kawaz.semver.compare` (acceptsArgs Task) のように `tasks { kawaz.semver.compare }` でそのまま登録できる短縮形。
-- **module 参照公開** — `kawaz.semver.checkBumped` は **module** として公開し、利用側で `(kawaz.semver.checkBumped) { compareRefCmd = ...; versionFiles = ... }.check` のように parameterize して instance task を作る前提。
+- **module 参照公開** — `kawaz.semver.checkBumped` は **module** として公開し、利用側で `(kawaz.semver.checkBumped) { compareRef = ...; versionFiles = ... }.check` のように parameterize して instance task を作る前提。
 
-加えて各 group entry は `allTasks: Listing<Task>` を持ち、`tasks { ...kawaz.vcs.allTasks }` のような spread 一括登録に対応する (v0.0.11 で追加)。parameterize 前提の module 参照は `allTasks` から除外し、利用者が明示インスタンス化する責務にする。
+加えて各 group entry は `tasks: Listing<Task>` を持ち、`tasks { ...kawaz.vcs.tasks }` のような spread 一括登録に対応する (v0.0.11 で `allTasks` 名で導入、v3.0 で pkfire schema field 名 `tasks` に揃える rename)。parameterize 前提の module 参照は `tasks` から除外し、利用者が明示インスタンス化する責務にする。
+
+> 利用側 root の Pkl `tasks { ... }` block と field 名がぶつかるが、これは pkfire 0.10.0 の split-import example と同一の慣習なので意図的。spread sites では `...kawaz.<group>.tasks` のように group の field 経由でアクセスし、root block 側との混同は読み手の文脈で区別する。
 
 ## VCS 抽象 — abstract module + extends + 実行時切替
 
@@ -122,11 +124,11 @@ higher-level なレシピ (`semver/check-bumped` 等) を書くたびに「jj �
 
 パラメータ化されており、利用側で複数インスタンスを切れる:
 
-- `compareRefCmd: String` — 比較対象 ref を返す bash command substitution の中身
+- `compareRef: String` — 比較対象 VCS ref。plain なら `main@origin` / `origin/main` / `v0.15.0` 等、動的なら bump-semver の `vcs:` schema 関数形式 (`latest-tag()` / `latest-tag(<owner>/<repo>)`) を直接書く。default `"main@origin"`。v3.0 で旧 `compareRefCmd` (shell exec body) を rename した plain string field。動的 ref は内部で `bump-semver get "vcs:<ref>"` 経由で解決
 - `triggerPaths: List<String>` — 変更検知対象 (default `src/`)
 - `versionFiles: List<String>` — bump 対象の version ファイル一覧 (利用側プロジェクトの `VERSION` / `Cargo.toml` / `package.json` 等、複数可)
 - `taskName: String` — task 名 (利用側で `semver:check-version-bumped` / `semver:check-against-latest-release` のように別名を付ける)
-- `needsFetchTags: Boolean` — true なら deps に `vcs.fetchTags` を挟む (v0.0.9 追加)。tag 系の compareRef (`git tag -l 'v*' ...`, `vcs:latest-tag()`) を使う場合に jj/git の tag 同期を保証するため。default false (push 前 gate 等、`main@origin` 比較では不要)
+- `needsFetchTags: Boolean` — true なら deps に `vcs.fetchTags` を挟む (v0.0.9 追加)。tag 系の compareRef (`vcs:latest-tag()` 等) を使う場合に jj/git の tag 同期を保証するため。default false (push 前 gate 等、`main@origin` 比較では不要)
 
 `(semverCheck) { ... }.check` の object-amends で利用側が 2 task に展開する流儀。実装は `vcs.diffSummary` で trigger paths の差分を取り、空でなければ `bump-semver compare gt VERSION vcs:"$compare_ref":VERSION` で SemVer 比較する。
 
