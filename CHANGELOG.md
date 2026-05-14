@@ -2,6 +2,19 @@
 
 All notable changes to `kawaz/pkf-tasks` are recorded here. The package follows [SemVer](https://semver.org/). Starting from **1.0.0** the module entry API is stable — breaking changes go in major bumps; minor/patch keep backward compatibility. Major-only pinning (`pkf-tasks@1` / `pkf-tasks@2`) is supported.
 
+## 2.3.1 — 2026-05-14
+
+Patch release. pkfire 0.8.0 で導入された `Task.cmd` 省略 (deps-only umbrella) を採用してライブラリ内部を整理。
+
+### Changed
+
+- `tasks/docs/translations.pkl` の `forPairs` umbrella (= `docs:check-translations`) の `cmd = ":"` を削除。pkfire 0.8+ schema で deps だけの umbrella は cmd 省略可能で、`pkf list` でも `:` の偽 cmd が消えてすっきり
+- `Taskfile.pkl` (dogfood) の `ci` umbrella も同様に `cmd = ":"` 削除
+
+### Migration notes
+
+No action required. library API は変わらず (deps 並列実行 → 成功終了の挙動同じ)、consumer から見た task の挙動も同じ。pkfire 0.10.0 必須なのは v2.3.0 と同じ。
+
 ## 2.3.0 — 2026-05-14
 
 Minor release adopting pkfire 0.10.0. Bumps the library's pkfire dependency from 0.7.0 to 0.10.0, picking up the additive feature set that pkfire shipped on 2026-05-13 (0.8.0 / 0.9.0 / 0.10.0).
