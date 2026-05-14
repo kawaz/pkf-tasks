@@ -102,11 +102,15 @@ jobs:
         run: |
           pkl project resolve
           pkl project package
+          ls -la .out/ # diagnostic: confirm package output path
       - uses: actions/upload-artifact@v7
         with:
           name: pkf-tasks-package
-          path: tasks/.out/pkf-tasks@*/
-          include-hidden-files: false
+          # path に glob (`pkf-tasks@*/`) を使うと upload-artifact@v7 で
+          # 末尾スラッシュ + `@` の組み合わせが match しない事象があったため、
+          # check-version の output から具体 version を埋めて確定 path にする
+          path: tasks/.out/pkf-tasks@${{ needs.check-version.outputs.version }}/
+          if-no-files-found: error
 
   release:
     needs: [check-version, build]
