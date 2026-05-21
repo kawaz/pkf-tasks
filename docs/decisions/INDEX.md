@@ -12,6 +12,7 @@ kawaz/pkf-tasks の設計判断記録一覧。ファイル名は `DR-NNNN-title.
 - [DR-0006](./DR-0006-vcs-as-knowledge-storage.md) — vcs/* を「VCS dispatch + jj/git knowledge 集積場」として位置付ける運用方針
 - [DR-0007](./DR-0007-group-structure-conventions.md) — pkf-tasks の group 構造規約 (1 group = 1 ドメイン責務、命名 `<group>:<action>`、v1.0.0+ で `tasks/<group>.pkl` flat 化)
 - [DR-0008](./DR-0008-lint-group-removed-from-library.md) — lint group を library export から外し Taskfile.pkl に inline 化 (v2.0.0、library export 基準を明示)
+- [DR-0009](./DR-0009-followup-group.md) — push 後フローを `followup` group として設計 (push と分離した決定論的 task、chain deps で順序保証)
 
 ## Archived
 
